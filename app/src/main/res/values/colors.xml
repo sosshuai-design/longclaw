@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="longclaw_primary">#FFE4572E</color>
+    <color name="longclaw_on_primary">#FFFFFFFF</color>
+    <color name="longclaw_background">#FFF7F7F8</color>
+</resources>
