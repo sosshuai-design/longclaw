@@ -158,6 +158,46 @@ class LongclawAccessibilityService : AccessibilityService() {
     }
 
     /**
+     * 直接点一个已经拿到的节点（带支付守卫与坐标兜底）。适配器如果先做了
+     * 复杂的节点筛选（如挑出价格 ≤ X 的菜），会拿到一个具体节点再丢进来。
+     */
+    suspend fun clickNode(node: AccessibilityNodeInfo): Boolean {
+        guardAgainstPayment("clickNode(${node.viewIdResourceName})") ?: return false
+        return performClickWithFallback(node)
+    }
+
+    /**
+     * 在当前根节点下查找所有匹配 viewId 的节点。MeituanAdapter 的强价格比较
+     * 需要枚举一整列的菜品节点，然后逐个对比文案。
+     */
+    fun findAllByViewId(viewId: String): List<AccessibilityNodeInfo> {
+        val root = rootInActiveWindow ?: return emptyList()
+        return root.findAccessibilityNodeInfosByViewId(viewId).orEmpty()
+    }
+
+    /** 同上，但只查名字包含 [text] 的节点。 */
+    fun findAllByText(text: String): List<AccessibilityNodeInfo> {
+        val root = rootInActiveWindow ?: return emptyList()
+        return root.findAccessibilityNodeInfosByText(text).orEmpty()
+    }
+
+    /**
+     * 在某个父节点的整棵子树里找第一个 id 等于 [viewId] 的子节点。用来从
+     * 「菜品行」的容器里同时拿到 dish_name / dish_price / dish_add 等兄弟节点。
+     */
+    fun findDescendantByViewId(
+        parent: AccessibilityNodeInfo,
+        viewId: String,
+    ): AccessibilityNodeInfo? {
+        if (parent.viewIdResourceName == viewId) return parent
+        for (i in 0 until parent.childCount) {
+            val c = parent.getChild(i) ?: continue
+            findDescendantByViewId(c, viewId)?.let { return it }
+        }
+        return null
+    }
+
+    /**
      * 通用兜底点击：若节点本身不可点击，找到坐标手势点一下。
      */
     private suspend fun performClickWithFallback(node: AccessibilityNodeInfo): Boolean {

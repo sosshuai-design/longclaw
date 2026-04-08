@@ -1,6 +1,7 @@
 package com.longclaw.app.adapter.meituan
 
 import android.util.Log
+import android.view.accessibility.AccessibilityNodeInfo
 import com.longclaw.app.security.PaymentGuard
 import com.longclaw.app.service.LongclawAccessibilityService
 import kotlinx.coroutines.TimeoutCancellationException
@@ -92,21 +93,18 @@ class MeituanAdapter(
         }
         delay(NAV_SETTLE_MS)
 
-        // 步骤 6：挑菜
+        // 步骤 6：挑菜（关键改动：当 dishName 与 maxPrice 都明确时做强价格比较）
         Log.i(TAG, "[6/10] PickDish dishName=${request.dishName} maxPrice=${request.maxPrice}")
-        val dishKey = request.dishName ?: request.keyword
-        val dishNode = service.waitForText(dishKey, timeoutMs = LONG_WAIT_MS)
-            ?: return MeituanOrderResult.Failed(Stage.PickDish, "未在菜单里找到「$dishKey」")
-        // MVP：价格上限只是日志提示，真正的过滤要等 Vision/OCR 模块。
-        if (request.maxPrice != null) {
-            Log.d(TAG, "PickDish: 价格上限=${request.maxPrice}（MVP 仅记录，未实际过滤）")
-        }
-        Log.d(TAG, "PickDish 命中节点 text=${dishNode.text}")
+        val pickedAddBtn: AccessibilityNodeInfo = pickDishAddButton(request)
+            ?: return MeituanOrderResult.Failed(
+                Stage.PickDish,
+                buildPickDishError(request),
+            )
 
-        // 步骤 7：加入购物车
+        // 步骤 7：加入购物车（点 step 6 已经锁定的那个 add 按钮）
         Log.i(TAG, "[7/10] AddToCart x${request.quantity}")
         repeat(request.quantity.coerceAtLeast(1)) { idx ->
-            val ok = service.clickByViewId(MeituanSelectors.ID_DISH_ADD_BUTTON)
+            val ok = service.clickNode(pickedAddBtn)
             Log.d(TAG, "AddToCart click#$idx ok=$ok")
             delay(STEP_INTERVAL_MS)
         }
@@ -143,6 +141,88 @@ class MeituanAdapter(
         )
     }
 
+    /**
+     * 选菜核心逻辑：
+     *  1. 等待菜品列表的某一行（dish_title）出现，确保商家详情页已加载完毕。
+     *  2. 枚举所有 dish_title 节点，向上回溯到「行容器」，再向下找 price + add 按钮。
+     *  3. 同时满足「菜名匹配（若 dishName 非空）」与「价格 ≤ maxPrice（若非空）」
+     *     的最便宜一项胜出。dishName / maxPrice 都为空时取第一行可加购的菜。
+     *
+     * 失败返回 null；上层会用 [buildPickDishError] 拼一条对人友好的错误。
+     */
+    private suspend fun pickDishAddButton(
+        request: MeituanOrderRequest,
+    ): AccessibilityNodeInfo? {
+        // 等列表里至少出现一个 dish_title，证明详情页内容已经渲染。
+        service.waitForViewId(MeituanSelectors.ID_DISH_TITLE, timeoutMs = LONG_WAIT_MS)
+            ?: run {
+                Log.w(TAG, "PickDish: 没等到任何 dish_title 节点")
+                return null
+            }
+
+        val titleNodes = service.findAllByViewId(MeituanSelectors.ID_DISH_TITLE)
+        Log.d(TAG, "PickDish: 候选行数=${titleNodes.size}")
+        if (titleNodes.isEmpty()) return null
+
+        data class Candidate(
+            val name: String,
+            val price: Double?,
+            val addBtn: AccessibilityNodeInfo,
+        )
+
+        val candidates = mutableListOf<Candidate>()
+        for (titleNode in titleNodes) {
+            val name = titleNode.text?.toString()?.trim().orEmpty()
+            if (name.isEmpty()) continue
+
+            // 行容器一般是 dish_title 的 parent；不同版本可能要再往上一层。
+            val row = titleNode.parent ?: continue
+            val priceNode = service.findDescendantByViewId(row, MeituanSelectors.ID_DISH_PRICE)
+            val addBtn = service.findDescendantByViewId(row, MeituanSelectors.ID_DISH_ADD_BUTTON)
+                ?: row.parent?.let {
+                    service.findDescendantByViewId(it, MeituanSelectors.ID_DISH_ADD_BUTTON)
+                }
+                ?: continue
+            candidates += Candidate(
+                name = name,
+                price = priceNode?.text?.toString()?.let(::parsePrice),
+                addBtn = addBtn,
+            )
+        }
+        Log.d(TAG, "PickDish: 解析后候选数=${candidates.size}")
+        if (candidates.isEmpty()) return null
+
+        val byName: List<Candidate> = if (!request.dishName.isNullOrBlank()) {
+            candidates.filter { it.name.contains(request.dishName) }
+        } else {
+            candidates
+        }
+        val byPrice: List<Candidate> = if (request.maxPrice != null) {
+            byName.filter { it.price != null && it.price <= request.maxPrice + EPSILON }
+        } else {
+            byName
+        }
+        val ranked = byPrice.sortedBy { it.price ?: Double.MAX_VALUE }
+        val winner = ranked.firstOrNull()
+        Log.i(
+            TAG,
+            "PickDish 选中: name=${winner?.name} price=${winner?.price} (候选 ${candidates.size}/匹配 ${byPrice.size})",
+        )
+        return winner?.addBtn
+    }
+
+    /** 解析「¥18.5」「￥18」「18 元」「18.50」之类的文本为 Double；失败返回 null。 */
+    private fun parsePrice(raw: String): Double? {
+        val m = Regex("(\\d+(?:\\.\\d+)?)").find(raw) ?: return null
+        return m.groupValues[1].toDoubleOrNull()
+    }
+
+    private fun buildPickDishError(request: MeituanOrderRequest): String = buildString {
+        append("没能在商家详情里挑到合适的菜")
+        if (!request.dishName.isNullOrBlank()) append("（菜名：${request.dishName}）")
+        if (request.maxPrice != null) append("（价格上限：${request.maxPrice} 元）")
+    }
+
     companion object {
         private const val TAG = "龙爪"
 
@@ -153,5 +233,6 @@ class MeituanAdapter(
         private const val LAUNCH_SETTLE_MS = 1_500L
         private const val NAV_SETTLE_MS = 800L
         private const val STEP_INTERVAL_MS = 250L
+        private const val EPSILON = 0.001
     }
 }
