@@ -85,6 +85,15 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    // 让本地 JVM 单元测试里对 android.util.Log 等 stub 类的调用返回默认值而不是抛
+    // "Stub!" 异常。真正需要 Android 框架实现的部分（org.json.*）通过把
+    // `org.json:json` 加到 testImplementation 来覆盖。
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -105,4 +114,10 @@ dependencies {
     implementation(libs.okhttp)
 
     debugImplementation(libs.androidx.ui.tooling)
+
+    testImplementation(libs.junit4)
+    // Android 的 `android.jar` 只给 org.json 留了 stub，本地 JVM 测试会抛
+    // "Stub!"；引入真实的 org.json:json 让 testImplementation 的 classpath
+    // 覆盖 stub。生产代码路径仍然用系统自带的 org.json。
+    testImplementation(libs.org.json)
 }
