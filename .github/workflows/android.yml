@@ -1,0 +1,66 @@
+name: build
+
+# 这个 workflow 是 MVP-1 的编译守门员：
+# 本地沙箱 / Codespaces 拉不到 Google Maven（dl.google.com 被挡），
+# 但 GitHub Runner 默认开放，所以把真正的编译验证放到这里做。
+#
+# 触发规则：push 到任何分支 + 对 main 的 PR。
+# 任务：assembleDebug —— 不跑 instrumented 测试（需要 emulator），
+# 这一步能保证整套 Kotlin/Compose/AGP 依赖链 + 源码真的能编出来。
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  assemble-debug:
+    name: assembleDebug
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # 与 app/build.gradle.kts 的 compileSdk / targetSdk 对齐
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Assemble debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: longclaw-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 7
