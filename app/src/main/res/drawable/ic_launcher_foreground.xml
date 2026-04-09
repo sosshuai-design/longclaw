@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- A simple stylised "claw" mark, intentionally lightweight; replace with real artwork later. -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M54,28
+            C46,28 40,34 40,42
+            L40,58
+            C40,66 46,72 54,72
+            C62,72 68,66 68,58
+            L68,42
+            C68,34 62,28 54,28 Z
+            M48,42
+            C48,38 50,36 54,36
+            C58,36 60,38 60,42
+            L60,58
+            C60,62 58,64 54,64
+            C50,64 48,62 48,58 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M30,72 L36,72 L36,84 L30,84 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M51,72 L57,72 L57,84 L51,84 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M72,72 L78,72 L78,84 L72,84 Z" />
+</vector>

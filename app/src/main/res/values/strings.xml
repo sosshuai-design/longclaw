@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">龙爪</string>
+    <string name="accessibility_service_label">龙爪自动化服务</string>
+    <string name="accessibility_service_summary">代您操作美团等 App，完成搜索、比价、下单。支付始终由您本人完成。</string>
+    <string name="accessibility_service_description">龙爪需要无障碍权限来读取屏幕节点并模拟点击。我们仅在执行您下达的任务时操作界面，绝不会代您输入支付密码或扫脸。</string>
+
+    <string name="nav_home">首页</string>
+    <string name="nav_tasks">任务</string>
+    <string name="nav_profile">我的</string>
+
+    <string name="hint_command_input">告诉龙爪你要做什么，例如：帮我点一份海底捞外卖</string>
+    <string name="action_send">发送</string>
+    <string name="action_voice">语音输入</string>
+    <string name="action_voice_unavailable">语音功能将在后续版本上线</string>
+
+    <string name="permission_status_connected">服务已连接</string>
+    <string name="permission_status_disconnected">服务未连接</string>
+    <string name="permission_guide_title">需要开启无障碍权限</string>
+    <string name="permission_guide_body">龙爪通过无障碍服务读取屏幕并模拟点击，从而代您完成任务。请在系统设置中开启「龙爪自动化服务」后返回。</string>
+    <string name="permission_guide_action">前往系统设置开启</string>
+
+    <string name="payment_blocked_title">支付环节由您本人完成</string>
+    <string name="payment_blocked_body">为了您的资金安全，龙爪绝不会代为输入支付密码或人脸识别。当出现支付页面时请由您手动确认。</string>
+</resources>
