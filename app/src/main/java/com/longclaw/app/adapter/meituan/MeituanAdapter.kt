@@ -71,15 +71,21 @@ class MeituanAdapter(
             return MeituanOrderResult.Failed(Stage.SwitchToDelivery, "找不到「外卖」入口")
         }
 
-        // 步骤 4：搜索关键词
+        // 步骤 4：搜索关键词（多候选 viewId + 文案兜底）
         Log.i(TAG, "[4/10] Search keyword=${request.keyword}")
-        if (!service.clickByViewId(MeituanSelectors.ID_HOME_SEARCH_BOX)) {
+        if (!clickFirstCandidate(MeituanSelectors.ID_HOME_SEARCH_BOX_CANDIDATES, "首页搜索框")
+            && !clickFirstTextHint(MeituanSelectors.TEXT_SEARCH_HINTS, "首页搜索框")) {
             return MeituanOrderResult.Failed(Stage.Search, "找不到搜索框")
         }
-        if (!service.inputText(MeituanSelectors.ID_SEARCH_INPUT, request.keyword)) {
+        delay(NAV_SETTLE_MS)
+        if (!inputFirstCandidate(MeituanSelectors.ID_SEARCH_INPUT_CANDIDATES, request.keyword, "搜索输入框")
+            && !inputFirstCandidate(MeituanSelectors.ID_HOME_SEARCH_BOX_CANDIDATES, request.keyword, "搜索输入框(重试)")) {
             return MeituanOrderResult.Failed(Stage.Search, "搜索框输入失败")
         }
-        service.clickByViewId(MeituanSelectors.ID_SEARCH_BUTTON)
+        // 点搜索按钮：先试 viewId，再试文案
+        if (!clickFirstCandidate(MeituanSelectors.ID_SEARCH_BUTTON_CANDIDATES, "搜索按钮")) {
+            clickFirstTextHint(MeituanSelectors.TEXT_SEARCH_BUTTON_HINTS, "搜索按钮")
+        }
 
         // 步骤 5：挑商家（先取列表里第一个匹配关键词的）
         Log.i(TAG, "[5/10] PickStore")
@@ -221,6 +227,54 @@ class MeituanAdapter(
         append("没能在商家详情里挑到合适的菜")
         if (!request.dishName.isNullOrBlank()) append("（菜名：${request.dishName}）")
         if (request.maxPrice != null) append("（价格上限：${request.maxPrice} 元）")
+    }
+
+    // ─── 多候选兜底工具方法 ────────────────────────────────────
+
+    /** 依次尝试多个 viewId，第一个命中的就点击并返回 true。全部 miss 返回 false。 */
+    private suspend fun clickFirstCandidate(
+        candidates: List<String>,
+        desc: String,
+    ): Boolean {
+        for (id in candidates) {
+            if (service.clickByViewId(id, timeoutMs = SHORT_WAIT_MS)) {
+                Log.i(TAG, "$desc 命中 viewId=$id")
+                return true
+            }
+        }
+        Log.w(TAG, "$desc 所有候选 viewId 均未命中: $candidates")
+        return false
+    }
+
+    /** 依次尝试多个文案关键词，第一个命中的就点击并返回 true。 */
+    private suspend fun clickFirstTextHint(
+        hints: List<String>,
+        desc: String,
+    ): Boolean {
+        for (text in hints) {
+            if (service.clickByText(text, timeoutMs = SHORT_WAIT_MS)) {
+                Log.i(TAG, "$desc 命中文案=$text")
+                return true
+            }
+        }
+        Log.w(TAG, "$desc 所有候选文案均未命中: $hints")
+        return false
+    }
+
+    /** 依次尝试多个 viewId 做文本输入，第一个命中的就输入并返回 true。 */
+    private suspend fun inputFirstCandidate(
+        candidates: List<String>,
+        text: String,
+        desc: String,
+    ): Boolean {
+        for (id in candidates) {
+            if (service.inputText(id, text, timeoutMs = SHORT_WAIT_MS)) {
+                Log.i(TAG, "$desc 命中 viewId=$id, 输入=$text")
+                return true
+            }
+        }
+        Log.w(TAG, "$desc 所有候选 viewId 均未命中: $candidates")
+        return false
     }
 
     companion object {

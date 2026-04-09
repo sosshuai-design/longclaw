@@ -61,13 +61,34 @@ object MeituanSelectors {
 
     // ─── 启动后的隐私弹窗 / 首页 ─────────────────────────────
     const val ID_PRIVACY_AGREE = "$PACKAGE_MEITUAN:id/agree"
-    const val ID_HOME_SEARCH_BOX = "$PACKAGE_MEITUAN:id/search_edit"
     const val TEXT_TAB_DELIVERY = "外卖"
     const val TEXT_TAB_HOME = "首页"
 
     // ─── 搜索流程 ──────────────────────────────────────────
-    const val ID_SEARCH_INPUT = "$PACKAGE_MEITUAN:id/search_edit_frame"
-    const val ID_SEARCH_BUTTON = "$PACKAGE_MEITUAN:id/search_btn"
+    // viewId 候选：美团不同版本 id 不一样，按优先级依次尝试
+    val ID_HOME_SEARCH_BOX_CANDIDATES = listOf(
+        "$PACKAGE_MEITUAN:id/search_edit",
+        "$PACKAGE_MEITUAN:id/search_text",
+        "$PACKAGE_MEITUAN:id/search_bar",
+        "$PACKAGE_MEITUAN:id/hotel_search_edit",
+        "$PACKAGE_MEITUAN:id/search_container",
+    )
+    // 搜索框上的占位文案关键词，用于 viewId 全部 miss 时的文案兜底
+    val TEXT_SEARCH_HINTS = listOf("搜索", "搜一搜", "搜索商家", "找商家")
+
+    val ID_SEARCH_INPUT_CANDIDATES = listOf(
+        "$PACKAGE_MEITUAN:id/search_edit_frame",
+        "$PACKAGE_MEITUAN:id/search_input",
+        "$PACKAGE_MEITUAN:id/search_edit",
+        "$PACKAGE_MEITUAN:id/search_edit_text",
+        "$PACKAGE_MEITUAN:id/search_src_text",
+    )
+    val ID_SEARCH_BUTTON_CANDIDATES = listOf(
+        "$PACKAGE_MEITUAN:id/search_btn",
+        "$PACKAGE_MEITUAN:id/search_button",
+        "$PACKAGE_MEITUAN:id/right_btn",
+    )
+    val TEXT_SEARCH_BUTTON_HINTS = listOf("搜索", "搜一搜")
     const val ID_SEARCH_RESULT_LIST = "$PACKAGE_MEITUAN:id/recycler_view"
     const val ID_SEARCH_RESULT_ITEM_TITLE = "$PACKAGE_MEITUAN:id/title"
 
