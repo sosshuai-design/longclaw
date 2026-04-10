@@ -157,6 +157,13 @@ class LongclawAccessibilityService : AccessibilityService() {
         scrollable.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)
     }
 
+    /** 模拟按系统返回键。用于关闭广告弹窗 / 浮层。 */
+    fun pressBack(): Boolean {
+        val ok = performGlobalAction(GLOBAL_ACTION_BACK)
+        Log.d(TAG, "pressBack -> ok=$ok")
+        return ok
+    }
+
     /**
      * 直接点一个已经拿到的节点（带支付守卫与坐标兜底）。适配器如果先做了
      * 复杂的节点筛选（如挑出价格 ≤ X 的菜），会拿到一个具体节点再丢进来。

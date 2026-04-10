@@ -58,18 +58,22 @@ class MeituanAdapter(
         delay(LAUNCH_SETTLE_MS)
         PaymentGuard.assertNotPayment(service.currentForegroundPackage())
 
-        // 步骤 2：处理隐私弹窗（首次安装才有）
+        // 步骤 2：关闭所有弹窗（隐私弹窗 + 广告弹窗 + 活动浮层，可能有多个）
         Log.i(TAG, "[2/10] DismissPopups")
-        service.clickByViewId(
-            MeituanSelectors.ID_PRIVACY_AGREE,
-            timeoutMs = SHORT_WAIT_MS,
-        )
+        dismissAllPopups()
 
         // 步骤 3：切到「外卖」Tab
         Log.i(TAG, "[3/10] SwitchToDelivery")
         if (!service.clickByText(MeituanSelectors.TEXT_TAB_DELIVERY)) {
-            return MeituanOrderResult.Failed(Stage.SwitchToDelivery, "找不到「外卖」入口")
+            // 可能又弹了一层，再关一轮然后重试
+            dismissAllPopups()
+            if (!service.clickByText(MeituanSelectors.TEXT_TAB_DELIVERY)) {
+                return MeituanOrderResult.Failed(Stage.SwitchToDelivery, "找不到「外卖」入口")
+            }
         }
+        // 切完 Tab 后可能又弹广告，再清一次
+        delay(NAV_SETTLE_MS)
+        dismissAllPopups()
 
         // 步骤 4：搜索关键词（多候选 viewId + 文案兜底）
         Log.i(TAG, "[4/10] Search keyword=${request.keyword}")
@@ -277,6 +281,53 @@ class MeituanAdapter(
         return false
     }
 
+    // ─── 弹窗关闭 ─────────────────────────────────────────────
+
+    /**
+     * 尝试关掉当前屏幕上的所有弹窗（隐私弹窗、广告浮层、活动弹窗等）。
+     *
+     * 策略（最多循环 [MAX_POPUP_ROUNDS] 轮）：
+     *  1. 先尝试点击已知的关闭按钮 viewId（[MeituanSelectors.ID_POPUP_CLOSE_CANDIDATES]）。
+     *  2. 再尝试点击包含关闭文案的节点（[MeituanSelectors.TEXT_POPUP_DISMISS]）。
+     *  3. 都没命中就按一次系统返回键兜底。
+     *  4. 每轮之间短暂等待，让 UI 刷新。
+     *
+     * 全部轮次结束后无论是否成功都静默返回；失败不阻塞主流程。
+     */
+    private suspend fun dismissAllPopups() {
+        repeat(MAX_POPUP_ROUNDS) { round ->
+            var dismissed = false
+
+            // 1. 尝试 viewId 关闭按钮
+            for (id in MeituanSelectors.ID_POPUP_CLOSE_CANDIDATES) {
+                if (service.clickByViewId(id, timeoutMs = POPUP_PROBE_MS)) {
+                    Log.i(TAG, "dismissPopup round=$round 命中 viewId=$id")
+                    dismissed = true
+                    break
+                }
+            }
+
+            // 2. viewId 没命中，尝试文案关闭按钮
+            if (!dismissed) {
+                for (text in MeituanSelectors.TEXT_POPUP_DISMISS) {
+                    if (service.clickByText(text, timeoutMs = POPUP_PROBE_MS)) {
+                        Log.i(TAG, "dismissPopup round=$round 命中文案=$text")
+                        dismissed = true
+                        break
+                    }
+                }
+            }
+
+            // 3. 都没命中，pressBack 兜底
+            if (!dismissed) {
+                Log.d(TAG, "dismissPopup round=$round 无命中，pressBack 兜底")
+                service.pressBack()
+            }
+
+            delay(NAV_SETTLE_MS)
+        }
+    }
+
     companion object {
         private const val TAG = "龙爪"
 
@@ -288,5 +339,10 @@ class MeituanAdapter(
         private const val NAV_SETTLE_MS = 800L
         private const val STEP_INTERVAL_MS = 250L
         private const val EPSILON = 0.001
+
+        /** 弹窗关闭最多尝试几轮。美团偶尔会叠 2-3 层弹窗。 */
+        private const val MAX_POPUP_ROUNDS = 3
+        /** 探测弹窗按钮的超短超时，避免每个候选都等太久。 */
+        private const val POPUP_PROBE_MS = 1_000L
     }
 }

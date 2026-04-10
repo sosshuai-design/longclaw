@@ -105,6 +105,22 @@ object MeituanSelectors {
     const val ID_CHECKOUT_TOTAL_PRICE = "$PACKAGE_MEITUAN:id/total_price"
     const val TEXT_SUBMIT_ORDER = "提交订单"
 
+    // ─── 广告弹窗 / 浮层关闭 ──────────────────────────────────
+    // 美团各版本弹窗上常见的关闭按钮文案 / viewId
+    val TEXT_POPUP_DISMISS = listOf(
+        "关闭", "×", "X", "x", "跳过", "我知道了", "不再提示",
+        "以后再说", "暂不", "取消", "稍后", "知道了",
+    )
+    val ID_POPUP_CLOSE_CANDIDATES = listOf(
+        "$PACKAGE_MEITUAN:id/close",
+        "$PACKAGE_MEITUAN:id/iv_close",
+        "$PACKAGE_MEITUAN:id/btn_close",
+        "$PACKAGE_MEITUAN:id/dialog_close",
+        "$PACKAGE_MEITUAN:id/close_btn",
+        "$PACKAGE_MEITUAN:id/close_button",
+        "$PACKAGE_MEITUAN:id/img_close",
+    )
+
     // ─── 风险信号：一旦看到这些就停手（多重保险，PaymentGuard 是底线） ───
     val PAYMENT_TEXT_SIGNALS: List<String> = listOf(
         "请输入支付密码",
