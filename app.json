@@ -39,6 +39,7 @@
     "plugins": [
       "expo-secure-store",
       "expo-camera",
+      "expo-document-picker",
       [
         "expo-av",
         {
