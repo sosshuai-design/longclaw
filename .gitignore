@@ -13,3 +13,12 @@ captures/
 *.jks
 regression_logs/
 selector_dumps/
+
+# React Native / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+.env
+.env.local
+expo-env.d.ts
