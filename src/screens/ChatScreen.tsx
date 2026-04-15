@@ -199,6 +199,9 @@ export default function ChatScreen() {
   const { pages, addPage } = useWikiStore();
   const { activeProvider } = useSettingsStore();
 
+  const pageTitle = route.params?.pageTitle;
+  const pageId = route.params?.pageId;
+
   const [inputText, setInputText] = useState('');
   const [urlMode, setUrlMode] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
@@ -207,10 +210,18 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const providerName = PROVIDERS[activeProvider]?.name ?? 'AI';
 
-  // 初始化模式
+  // 初始化模式；若携带页面引用则切换到 Query 模式
   useEffect(() => {
-    if (initialMode !== mode) setMode(initialMode);
-  }, [initialMode]);
+    const targetMode = pageTitle ? 'query' : initialMode;
+    if (targetMode !== mode) setMode(targetMode);
+  }, [initialMode, pageTitle]);
+
+  // 携带页面引用时，预填参考前缀
+  useEffect(() => {
+    if (pageTitle && pageId) {
+      setInputText(`关于《${pageTitle}》，`);
+    }
+  }, [pageTitle, pageId]);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
@@ -390,6 +401,16 @@ export default function ChatScreen() {
           </View>
         </View>
 
+        {/* Wiki 页面引用条 */}
+        {pageTitle && (
+          <View style={styles.pageRefBanner}>
+            <BookOpen size={14} color={Colors.primary} />
+            <Text style={styles.pageRefText} numberOfLines={1}>
+              正在引用：{pageTitle}
+            </Text>
+          </View>
+        )}
+
         {/* Ingest 提示条 */}
         {mode === 'ingest' && (
           <View style={styles.ingestBanner}>
@@ -544,6 +565,21 @@ const styles = StyleSheet.create({
   modeSwitchBtnActive: { backgroundColor: Colors.primary },
   modeSwitchText: { fontSize: 13, fontWeight: '600', color: Colors.text.secondary },
   modeSwitchTextActive: { color: '#fff' },
+
+  pageRefBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primaryLight,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+  },
+  pageRefText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '500',
+  },
 
   ingestBanner: {
     backgroundColor: Colors.ingestBanner,

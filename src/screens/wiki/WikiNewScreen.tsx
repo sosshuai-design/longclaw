@@ -11,9 +11,11 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp, RouteProp } from '@react-navigation/stack';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Sparkles } from 'lucide-react-native';
 import { Colors } from '../../constants/colors';
 import { useWikiStore } from '../../store/wikiStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { callLLM } from '../../services/llm';
 import { WikiStackParamList, WikiCategory } from '../../types';
 
 type Props = {
@@ -23,7 +25,15 @@ type Props = {
 
 // ─── 快速笔记 ─────────────────────────────────────────────────────────────────
 
-function NoteForm({ onSave, onSaveWithAI }: { onSave: (d: any) => void; onSaveWithAI: (d: any) => void }) {
+function NoteForm({
+  onSave,
+  onSaveWithAI,
+  aiLoading,
+}: {
+  onSave: (d: any) => void;
+  onSaveWithAI: (d: any) => void;
+  aiLoading?: boolean;
+}) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [tags, setTags] = useState('');
@@ -47,8 +57,19 @@ function NoteForm({ onSave, onSaveWithAI }: { onSave: (d: any) => void; onSaveWi
       <TextInput style={styles.input} value={tags} onChangeText={setTags} placeholder="标签1, 标签2" placeholderTextColor={Colors.text.tertiary} />
 
       <View style={styles.btnRow}>
-        <TouchableOpacity style={styles.aiSaveBtn} onPress={() => onSaveWithAI({ title, content, tags })}>
-          <Text style={styles.aiSaveBtnText}>AI 整理后存入</Text>
+        <TouchableOpacity
+          style={[styles.aiSaveBtn, aiLoading && { opacity: 0.5 }]}
+          onPress={() => onSaveWithAI({ title, content, tags })}
+          disabled={aiLoading}
+        >
+          {aiLoading ? (
+            <ActivityIndicator size="small" color={Colors.ai} />
+          ) : (
+            <>
+              <Sparkles size={14} color={Colors.ai} />
+              <Text style={styles.aiSaveBtnText}>AI 整理后存入</Text>
+            </>
+          )}
         </TouchableOpacity>
         <TouchableOpacity style={styles.directSaveBtn} onPress={() => onSave({ title, content, tags })}>
           <Text style={styles.directSaveBtnText}>直接存入</Text>
@@ -243,7 +264,9 @@ const TYPE_CONFIG = {
 export default function WikiNewScreen({ navigation, route }: Props) {
   const { type } = route.params;
   const { addPage } = useWikiStore();
+  const { activeProvider } = useSettingsStore();
   const [loading, setLoading] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const config = TYPE_CONFIG[type];
 
   async function handleSave(data: any) {
@@ -290,8 +313,24 @@ export default function WikiNewScreen({ navigation, route }: Props) {
   }
 
   async function handleSaveWithAI(data: any) {
-    Alert.alert('即将上线', 'AI 整理功能将在后续版本中实现，目前先直接存入');
-    handleSave(data);
+    const rawContent = data.content?.trim();
+    if (!rawContent) {
+      Alert.alert('提示', '请先填写内容');
+      return;
+    }
+    setAiLoading(true);
+    try {
+      const prompt = `你是一个个人知识库助手。请将下面的笔记整理为结构清晰的 Markdown 格式：\n\n原始内容：\n${rawContent}\n\n要求：\n- 补充合适的二级标题（##）\n- 提炼核心要点为要点列表\n- 保留所有原始信息，不要删改语义\n- 只输出整理后的 Markdown，不要解释`;
+      const response = await callLLM(activeProvider, [
+        { role: 'user', content: prompt },
+      ]);
+      // 用 AI 整理后的内容替换原内容再保存
+      await handleSave({ ...data, content: response.content });
+    } catch (e: any) {
+      Alert.alert('AI 整理失败', e.message ?? '请检查 API Key 或网络');
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   return (
@@ -301,7 +340,12 @@ export default function WikiNewScreen({ navigation, route }: Props) {
           <ArrowLeft size={22} color={Colors.text.primary} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: config.color }]}>{config.title}</Text>
-        {loading && <ActivityIndicator size="small" color={config.color} />}
+        {(loading || aiLoading) && (
+          <ActivityIndicator size="small" color={config.color} />
+        )}
+        {aiLoading && (
+          <Text style={[styles.aiStatusText, { color: config.color }]}>AI 整理中…</Text>
+        )}
       </View>
 
       <ScrollView
@@ -310,7 +354,13 @@ export default function WikiNewScreen({ navigation, route }: Props) {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {type === 'note' && <NoteForm onSave={handleSave} onSaveWithAI={handleSaveWithAI} />}
+        {type === 'note' && (
+          <NoteForm
+            onSave={handleSave}
+            onSaveWithAI={handleSaveWithAI}
+            aiLoading={aiLoading}
+          />
+        )}
         {type === 'diary' && <DiaryForm onSave={handleSave} />}
         {type === 'cognition' && <CognitionForm onSave={handleSave} />}
         {type === 'wiki' && <WikiPageForm onSave={handleSave} />}
@@ -383,11 +433,14 @@ const styles = StyleSheet.create({
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 28 },
   aiSaveBtn: {
     flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
     borderWidth: 0.5,
     borderColor: Colors.ai,
     borderRadius: 12,
     paddingVertical: 14,
-    alignItems: 'center',
   },
   aiSaveBtnText: { fontSize: 14, fontWeight: '600', color: Colors.ai },
   directSaveBtn: {
@@ -407,4 +460,5 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   primaryBtnText: { fontSize: 15, fontWeight: '600', color: '#fff' },
+  aiStatusText: { fontSize: 12, marginLeft: 8, fontWeight: '500' },
 });

@@ -74,10 +74,9 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
 
   function handleChatAboutPage() {
     if (!page) return;
-    // 跳转到 Chat 并预填 Wiki 引用
     rootNav.navigate('Main', {
       screen: 'Chat',
-      params: { mode: 'query' },
+      params: { mode: 'query', pageTitle: page.title, pageId: page.filePath },
     });
   }
 
@@ -174,7 +173,7 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.editBtn}
-          onPress={() => Alert.alert('编辑', '编辑功能即将上线')}
+          onPress={() => navigation.navigate('WikiEdit', { pageId: page.filePath })}
         >
           <Edit2 size={16} color="#fff" />
           <Text style={styles.editBtnText}>编辑</Text>

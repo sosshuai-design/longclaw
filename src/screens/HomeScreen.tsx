@@ -125,7 +125,10 @@ export default function HomeScreen() {
                 key={page.id}
                 page={page}
                 onPress={() => {
-                  navigation.navigate('Wiki');
+                  (navigation as any).navigate('Wiki', {
+                    screen: 'WikiDetail',
+                    params: { pageId: page.filePath },
+                  });
                 }}
               />
             ))

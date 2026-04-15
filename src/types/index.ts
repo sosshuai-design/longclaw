@@ -119,7 +119,7 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
-  Chat: { mode?: ChatMode };
+  Chat: { mode?: ChatMode; pageTitle?: string; pageId?: string };
   Wiki: undefined;
   Settings: undefined;
 };
@@ -128,6 +128,7 @@ export type WikiStackParamList = {
   WikiList: undefined;
   WikiDetail: { pageId: string };
   WikiNew: { type: 'note' | 'diary' | 'cognition' | 'wiki' };
+  WikiEdit: { pageId: string };
 };
 
 export type RootStackParamList = {
