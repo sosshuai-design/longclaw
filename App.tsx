@@ -20,6 +20,9 @@ import RegisterScreen from './src/screens/auth/RegisterScreen';
 import HomeScreen from './src/screens/HomeScreen';
 import ChatScreen from './src/screens/ChatScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
+import LintScreen from './src/screens/LintScreen';
+import SystemFilesScreen from './src/screens/SystemFilesScreen';
+import SearchScreen from './src/screens/SearchScreen';
 
 // ─── Wiki 栈 ──────────────────────────────────────────────────────────────────
 import WikiListScreen from './src/screens/wiki/WikiListScreen';
@@ -33,10 +36,22 @@ import {
   RootStackParamList,
 } from './src/types';
 
+// ─── 扩展导航参数类型 ─────────────────────────────────────────────────────────
+
+export type RootStackExtParamList = {
+  Main: undefined;
+  Auth: undefined;
+  Lint: undefined;
+  SystemFiles: undefined;
+  Search: undefined;
+};
+
+export type WikiStackExtParamList = WikiStackParamList;
+
 const AuthStack = createStackNavigator<AuthStackParamList>();
 const MainTab = createBottomTabNavigator<MainTabParamList>();
 const WikiStack = createStackNavigator<WikiStackParamList>();
-const RootStack = createStackNavigator<RootStackParamList>();
+const RootStack = createStackNavigator<RootStackExtParamList>();
 
 function AuthNavigator() {
   return (
@@ -49,11 +64,7 @@ function AuthNavigator() {
 
 function WikiNavigator() {
   return (
-    <WikiStack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
+    <WikiStack.Navigator screenOptions={{ headerShown: false }}>
       <WikiStack.Screen name="WikiList" component={WikiListScreen} />
       <WikiStack.Screen name="WikiDetail" component={WikiDetailScreen} />
       <WikiStack.Screen name="WikiNew" component={WikiNewScreen} />
@@ -115,7 +126,24 @@ function RootNavigator() {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
-        <RootStack.Screen name="Main" component={MainNavigator} />
+        <>
+          <RootStack.Screen name="Main" component={MainNavigator} />
+          <RootStack.Screen
+            name="Lint"
+            component={LintScreen}
+            options={{ presentation: 'modal' }}
+          />
+          <RootStack.Screen
+            name="SystemFiles"
+            component={SystemFilesScreen}
+            options={{ presentation: 'modal' }}
+          />
+          <RootStack.Screen
+            name="Search"
+            component={SearchScreen}
+            options={{ presentation: 'modal' }}
+          />
+        </>
       ) : (
         <RootStack.Screen name="Auth" component={AuthNavigator} />
       )}

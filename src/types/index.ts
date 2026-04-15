@@ -133,6 +133,9 @@ export type WikiStackParamList = {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
+  Lint: undefined;
+  SystemFiles: undefined;
+  Search: undefined;
 };
 
 // ─── Lint 报告 ───────────────────────────────────────────────────────────────

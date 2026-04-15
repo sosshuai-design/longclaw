@@ -7,8 +7,10 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp, RouteProp } from '@react-navigation/stack';
 import { ArrowLeft, Edit2, MessageSquare, Trash2 } from 'lucide-react-native';
 import Markdown from 'react-native-markdown-display';
@@ -23,24 +25,24 @@ type Props = {
   route: RouteProp<WikiStackParamList, 'WikiDetail'>;
 };
 
+const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
+
 export default function WikiDetailScreen({ navigation, route }: Props) {
   const { pageId } = route.params;
   const { pages, removePage } = useWikiStore();
+  const rootNav = useNavigation<any>();
   const [page, setPage] = useState<WikiPage | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // 从 store 或文件系统读取页面
   useEffect(() => {
     async function load() {
       setLoading(true);
-      // 先尝试 store
       const fromStore = pages.find((p) => p.filePath === pageId || p.id === pageId);
       if (fromStore) {
         setPage(fromStore);
         setLoading(false);
         return;
       }
-      // 从文件系统读取
       const loaded = await readWikiPage(pageId);
       setPage(loaded);
       setLoading(false);
@@ -66,9 +68,17 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  // 从内容中去掉 front matter，只保留正文
   function getBodyContent(content: string): string {
     return content.replace(/^---[\s\S]*?---\n/, '').trim();
+  }
+
+  function handleChatAboutPage() {
+    if (!page) return;
+    // 跳转到 Chat 并预填 Wiki 引用
+    rootNav.navigate('Main', {
+      screen: 'Chat',
+      params: { mode: 'query' },
+    });
   }
 
   const sourceLabel =
@@ -91,7 +101,7 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
   if (!page) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backBtnAlone} onPress={() => navigation.goBack()}>
           <ArrowLeft size={22} color={Colors.text.primary} />
         </TouchableOpacity>
         <View style={styles.notFound}>
@@ -103,7 +113,6 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {/* 顶部栏 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <ArrowLeft size={22} color={Colors.text.primary} />
@@ -120,15 +129,14 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
       >
-        {/* 来源 + 分类标签 */}
         <View style={styles.badges}>
           <View style={[
             styles.sourceBadge,
-            { backgroundColor: page.source === 'manual' ? Colors.userBg : Colors.aiBg }
+            { backgroundColor: page.source === 'manual' ? Colors.userBg : Colors.aiBg },
           ]}>
             <Text style={[
               styles.sourceBadgeText,
-              { color: page.source === 'manual' ? Colors.userDark : Colors.aiDark }
+              { color: page.source === 'manual' ? Colors.userDark : Colors.aiDark },
             ]}>
               {sourceLabel}
             </Text>
@@ -136,15 +144,9 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
           <CategoryBadge category={page.category} />
         </View>
 
-        {/* 标题 */}
         <Text style={styles.title}>{page.title}</Text>
+        <Text style={styles.meta}>{page.updated.slice(0, 10)} · {page.references} 引用</Text>
 
-        {/* 元信息 */}
-        <Text style={styles.meta}>
-          {page.updated.slice(0, 10)} · {page.references} 引用
-        </Text>
-
-        {/* 关键词标签 */}
         {page.tags.length > 0 && (
           <View style={styles.tags}>
             {page.tags.map((tag) => (
@@ -155,25 +157,25 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
           </View>
         )}
 
-        {/* Markdown 正文 */}
         <View style={styles.body}>
-          <Markdown style={markdownStyles}>{getBodyContent(page.content)}</Markdown>
+          <Markdown style={markdownStyles as any}>{getBodyContent(page.content)}</Markdown>
         </View>
 
-        {/* AI 关联面板 */}
         <View style={styles.relatedPanel}>
           <Text style={styles.relatedTitle}>相关页面</Text>
           <Text style={styles.relatedHint}>运行 Wiki 健康检查后自动关联</Text>
         </View>
       </ScrollView>
 
-      {/* 底部操作栏 */}
       <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.chatBtn}>
+        <TouchableOpacity style={styles.chatBtn} onPress={handleChatAboutPage}>
           <MessageSquare size={16} color={Colors.primary} />
           <Text style={styles.chatBtnText}>基于此页对话</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.editBtn}>
+        <TouchableOpacity
+          style={styles.editBtn}
+          onPress={() => Alert.alert('编辑', '编辑功能即将上线')}
+        >
           <Edit2 size={16} color="#fff" />
           <Text style={styles.editBtnText}>编辑</Text>
         </TouchableOpacity>
@@ -182,33 +184,11 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
   );
 }
 
-const markdownStyles = StyleSheet.create({
-  body: {
-    fontSize: 15,
-    color: Colors.text.primary,
-    lineHeight: 24,
-  },
-  heading1: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    marginBottom: 12,
-    marginTop: 8,
-  },
-  heading2: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    marginBottom: 10,
-    marginTop: 20,
-  },
-  heading3: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.text.primary,
-    marginBottom: 8,
-    marginTop: 14,
-  },
+const markdownStyles = {
+  body: { fontSize: 15, color: Colors.text.primary, lineHeight: 24 },
+  heading1: { fontSize: 22, fontWeight: '700', color: Colors.text.primary, marginBottom: 12, marginTop: 8 },
+  heading2: { fontSize: 18, fontWeight: '700', color: Colors.text.primary, marginBottom: 10, marginTop: 20 },
+  heading3: { fontSize: 16, fontWeight: '600', color: Colors.text.primary, marginBottom: 8, marginTop: 14 },
   bullet_list: { marginVertical: 4 },
   ordered_list: { marginVertical: 4 },
   list_item: { marginVertical: 3 },
@@ -218,7 +198,7 @@ const markdownStyles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1,
     fontSize: 13,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: MONO_FONT,
     color: Colors.primary,
   },
   code_block: {
@@ -226,7 +206,7 @@ const markdownStyles = StyleSheet.create({
     borderRadius: 8,
     padding: 14,
     fontSize: 13,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    fontFamily: MONO_FONT,
     marginVertical: 10,
   },
   blockquote: {
@@ -238,15 +218,14 @@ const markdownStyles = StyleSheet.create({
   },
   link: { color: Colors.primary },
   strong: { fontWeight: '700' },
-} as any);
-
-import { Platform } from 'react-native';
+};
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.background },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   notFound: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   notFoundText: { fontSize: 16, color: Colors.text.secondary },
+  backBtnAlone: { padding: 18 },
 
   header: {
     flexDirection: 'row',
@@ -273,39 +252,19 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 100 },
 
   badges: { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  sourceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
+  sourceBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   sourceBadgeText: { fontSize: 12, fontWeight: '600' },
 
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: Colors.text.primary,
-    lineHeight: 32,
-    marginBottom: 8,
-  },
+  title: { fontSize: 24, fontWeight: '700', color: Colors.text.primary, lineHeight: 32, marginBottom: 8 },
   meta: { fontSize: 13, color: Colors.text.secondary, marginBottom: 12 },
 
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 20 },
-  tag: {
-    backgroundColor: Colors.surface,
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
+  tag: { backgroundColor: Colors.surface, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
   tagText: { fontSize: 12, color: Colors.text.secondary },
 
   body: { marginBottom: 24 },
 
-  relatedPanel: {
-    backgroundColor: Colors.aiBg,
-    borderRadius: 13,
-    padding: 16,
-    marginTop: 8,
-  },
+  relatedPanel: { backgroundColor: Colors.aiBg, borderRadius: 13, padding: 16, marginTop: 8 },
   relatedTitle: { fontSize: 14, fontWeight: '700', color: Colors.aiDark, marginBottom: 4 },
   relatedHint: { fontSize: 13, color: Colors.aiDark, opacity: 0.7 },
 

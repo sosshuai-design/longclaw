@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import {
   User,
   Cpu,
@@ -19,13 +20,14 @@ import {
   ChevronRight,
   Key,
   Check,
-  X,
   LogOut,
+  FileCode,
+  ShieldCheck,
 } from 'lucide-react-native';
 import { Colors } from '../constants/colors';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { PROVIDERS, PROVIDER_KEYS_ORDERED, saveApiKey, getApiKey, hasApiKey } from '../services/llm';
+import { PROVIDERS, PROVIDER_KEYS_ORDERED, saveApiKey, hasApiKey } from '../services/llm';
 import { LLMProviderKey } from '../types';
 
 // ─── API Key 管理模态框 ───────────────────────────────────────────────────────
@@ -123,6 +125,7 @@ export default function SettingsScreen() {
   const { user, logout } = useAuthStore();
   const { activeProvider, setActiveProvider, autoLintEnabled, setAutoLint, iCloudSyncEnabled, setICloudSync } = useSettingsStore();
   const [apiKeyModal, setApiKeyModal] = useState<LLMProviderKey | null>(null);
+  const rootNav = useNavigation<any>();
 
   async function handleLogout() {
     Alert.alert('退出登录', '确定要退出吗？本地 Wiki 数据不会被删除。', [
@@ -222,12 +225,22 @@ export default function SettingsScreen() {
         </View>
 
         {/* Wiki 规则 */}
-        <SectionHeader icon={<Key size={16} color={Colors.primary} />} label="Wiki 规则" />
+        <SectionHeader icon={<FileCode size={16} color={Colors.primary} />} label="Wiki 规则" />
         <View style={styles.card}>
-          <SettingsItem label="编辑 WIKI_SCHEMA.md" onPress={() => Alert.alert('Schema', '即将上线')} isLast />
+          <SettingsItem
+            label="系统文件"
+            value="index · log · schema"
+            onPress={() => rootNav.navigate('SystemFiles')}
+          />
+          <SettingsItem
+            label="Wiki 健康检查"
+            icon={<ShieldCheck size={16} color={Colors.primary} />}
+            onPress={() => rootNav.navigate('Lint')}
+            isLast
+          />
         </View>
 
-        <Text style={styles.version}>WikiMind v1.0.0 · Phase 1 MVP</Text>
+        <Text style={styles.version}>WikiMind v1.0.0 · Phase 2</Text>
       </ScrollView>
 
       {apiKeyModal && (

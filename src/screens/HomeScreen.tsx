@@ -11,10 +11,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { FileText, ChevronRight, AlertTriangle, Sparkles, Layers } from 'lucide-react-native';
+import { FileText, ChevronRight, AlertTriangle, Sparkles, Layers, Search } from 'lucide-react-native';
 import { Colors } from '../constants/colors';
 import { useWikiStore } from '../store/wikiStore';
 import { useAuthStore } from '../store/authStore';
+import { useLintStore } from '../store/lintStore';
 import StatsCard from '../components/StatsCard';
 import WikiCard from '../components/WikiCard';
 import { MainTabParamList, WikiPage } from '../types';
@@ -23,11 +24,14 @@ type NavProp = BottomTabNavigationProp<MainTabParamList>;
 
 export default function HomeScreen() {
   const navigation = useNavigation<NavProp>();
+  const rootNav = useNavigation<any>();
   const { pages, stats, isLoading, loadPages } = useWikiStore();
   const { user } = useAuthStore();
+  const { report } = useLintStore();
 
   const recentPages = pages.slice(0, 5);
   const initials = user?.username?.slice(0, 1).toUpperCase() ?? 'W';
+  const pendingConflicts = report?.conflicts.length ?? stats.pendingConflicts;
 
   const handleRefresh = useCallback(async () => {
     await loadPages();
@@ -57,6 +61,12 @@ export default function HomeScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.indexBtn}
+              onPress={() => rootNav.navigate('Search')}
+            >
+              <Search size={20} color={Colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.indexBtn}
               onPress={() => navigation.navigate('Wiki')}
             >
               <Layers size={20} color={Colors.primary} />
@@ -79,8 +89,8 @@ export default function HomeScreen() {
             <View style={styles.statsSpacer} />
             <StatsCard
               label="待处理矛盾"
-              value={stats.pendingConflicts}
-              accent={stats.pendingConflicts > 0}
+              value={pendingConflicts}
+              accent={pendingConflicts > 0}
             />
           </View>
         </View>
@@ -135,14 +145,15 @@ export default function HomeScreen() {
             <QuickAction
               icon={<AlertTriangle size={18} color={Colors.lint.conflict} />}
               label="Wiki 健康检查"
-              desc={stats.pendingConflicts > 0 ? `${stats.pendingConflicts} 个待处理问题` : '检测矛盾和孤立页面'}
-              onPress={() => {}}
+              desc={pendingConflicts > 0 ? `${pendingConflicts} 个待处理问题` : '检测矛盾和孤立页面'}
+              onPress={() => rootNav.navigate('Lint')}
             />
             <QuickAction
               icon={<Layers size={18} color={Colors.text.secondary} />}
               label="系统文件"
               desc="index.md · log.md · schema"
-              onPress={() => navigation.navigate('Wiki')}
+              onPress={() => rootNav.navigate('SystemFiles')}
+              isLast
             />
           </View>
         </View>
@@ -169,11 +180,16 @@ interface QuickActionProps {
   label: string;
   desc: string;
   onPress: () => void;
+  isLast?: boolean;
 }
 
-function QuickAction({ icon, label, desc, onPress }: QuickActionProps) {
+function QuickAction({ icon, label, desc, onPress, isLast }: QuickActionProps) {
   return (
-    <TouchableOpacity style={styles.quickAction} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={[styles.quickAction, isLast && { borderBottomWidth: 0 }]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
       <View style={styles.quickActionIcon}>{icon}</View>
       <View style={styles.quickActionContent}>
         <Text style={styles.quickActionLabel}>{label}</Text>

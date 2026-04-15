@@ -35,6 +35,7 @@ const CATEGORIES: { key: WikiCategory | 'all'; label: string }[] = [
 
 export default function WikiListScreen() {
   const navigation = useNavigation<NavProp>();
+  const rootNav = useNavigation<any>();
   const { pages, isLoading, loadPages, selectedCategory, setSelectedCategory } = useWikiStore();
 
   const [searchText, setSearchText] = useState('');
@@ -87,7 +88,7 @@ export default function WikiListScreen() {
             {pages.length} 个页面 · {uniqueSources} 类来源
           </Text>
         </View>
-        <TouchableOpacity onPress={() => setSearchVisible((v) => !v)} style={styles.searchBtn}>
+        <TouchableOpacity onPress={() => rootNav.navigate('Search')} style={styles.searchBtn}>
           <Search size={20} color={Colors.text.secondary} />
         </TouchableOpacity>
       </View>
