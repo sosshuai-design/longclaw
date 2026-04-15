@@ -631,14 +631,7 @@ const styles = StyleSheet.create({
   },
   editSchemaBtnText: { fontSize: 13, color: Colors.primary, fontWeight: '600' },
 
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FFFBEB',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-  },
+  // raw
   rawSection: { padding: 14 },
   rawSectionHeader: {
     flexDirection: 'row',
