@@ -442,6 +442,86 @@ export async function listRawFiles(
   return FileSystem.readDirectoryAsync(dirPath);
 }
 
+// ─── 原始文件管理 ─────────────────────────────────────────────────────────────
+
+export interface RawFileInfo {
+  name: string;
+  absolutePath: string;
+  relativePath: string;
+  size: number;
+  modifiedAt: number;
+  category: 'articles' | 'pdfs' | 'audio' | 'assets';
+}
+
+export async function listRawFilesDetailed(
+  subDir: 'articles' | 'pdfs' | 'audio' | 'assets'
+): Promise<RawFileInfo[]> {
+  const dirPath = `${getRawDir()}${subDir}/`;
+  const info = await FileSystem.getInfoAsync(dirPath);
+  if (!info.exists) return [];
+
+  const names = await FileSystem.readDirectoryAsync(dirPath);
+  const result: RawFileInfo[] = [];
+  for (const name of names) {
+    const abs = `${dirPath}${name}`;
+    const fi = await FileSystem.getInfoAsync(abs, { size: true });
+    result.push({
+      name,
+      absolutePath: abs,
+      relativePath: `raw/${subDir}/${name}`,
+      size: (fi as any).size ?? 0,
+      modifiedAt: (fi as any).modificationTime ?? 0,
+      category: subDir,
+    });
+  }
+  return result.sort((a, b) => b.modifiedAt - a.modifiedAt);
+}
+
+export async function uploadRawFile(
+  sourceUri: string,
+  subDir: 'articles' | 'pdfs' | 'audio' | 'assets',
+  filename: string
+): Promise<void> {
+  const dirPath = `${getRawDir()}${subDir}/`;
+  const info = await FileSystem.getInfoAsync(dirPath);
+  if (!info.exists) {
+    await FileSystem.makeDirectoryAsync(dirPath, { intermediates: true });
+  }
+  await FileSystem.copyAsync({ from: sourceUri, to: `${dirPath}${filename}` });
+}
+
+export async function deleteRawFile(absolutePath: string): Promise<void> {
+  await FileSystem.deleteAsync(absolutePath, { idempotent: true });
+}
+
+// ─── 数据导出 ────────────────────────────────────────────────────────────────
+
+export async function exportWikiAsJSON(): Promise<string> {
+  const pages = await listAllWikiPages();
+  const schema = await readSchema();
+  const index = await readIndex();
+
+  const exportData = {
+    exportedAt: new Date().toISOString(),
+    appVersion: '1.0.0',
+    totalPages: pages.length,
+    pages: pages.map((p) => ({
+      title: p.title,
+      category: p.category,
+      tags: p.tags,
+      source: p.source,
+      created: p.created,
+      updated: p.updated,
+      filePath: p.filePath,
+      content: p.content,
+    })),
+    schema,
+    index,
+  };
+
+  return JSON.stringify(exportData, null, 2);
+}
+
 // ─── 统计数据 ────────────────────────────────────────────────────────────────
 
 export async function computeStats(): Promise<WikiStats> {

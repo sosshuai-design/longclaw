@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp, RouteProp } from '@react-navigation/stack';
-import { ArrowLeft, Edit2, MessageSquare, Trash2 } from 'lucide-react-native';
+import { ArrowLeft, Edit2, MessageSquare, Trash2, Link } from 'lucide-react-native';
 import Markdown from 'react-native-markdown-display';
 import { Colors } from '../../constants/colors';
 import { WikiStackParamList, WikiPage } from '../../types';
@@ -27,12 +27,27 @@ type Props = {
 
 const MONO_FONT = Platform.OS === 'ios' ? 'Menlo' : 'monospace';
 
+// 将 [[Title]] 转为 markdown 链接 wiki://Title
+function preprocessWikiLinks(content: string): string {
+  return content.replace(/\[\[([^\]]+)\]\]/g, (_, title) => {
+    return `[${title}](wiki://${encodeURIComponent(title)})`;
+  });
+}
+
 export default function WikiDetailScreen({ navigation, route }: Props) {
   const { pageId } = route.params;
   const { pages, removePage } = useWikiStore();
   const rootNav = useNavigation<any>();
   const [page, setPage] = useState<WikiPage | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 反向链接：所有引用了本页的其他页面
+  const backlinks = useMemo(() => {
+    if (!page) return [];
+    return pages.filter(
+      (p) => p.filePath !== page.filePath && p.content.includes(`[[${page.title}]]`)
+    );
+  }, [page, pages]);
 
   useEffect(() => {
     async function load() {
@@ -157,12 +172,48 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
         )}
 
         <View style={styles.body}>
-          <Markdown style={markdownStyles as any}>{getBodyContent(page.content)}</Markdown>
+          <Markdown
+            style={markdownStyles as any}
+            onLinkPress={(url) => {
+              if (url.startsWith('wiki://')) {
+                const title = decodeURIComponent(url.replace('wiki://', ''));
+                const target = pages.find((p) => p.title === title);
+                if (target) {
+                  navigation.push('WikiDetail', { pageId: target.filePath });
+                } else {
+                  Alert.alert('页面不存在', `未找到「${title}」`);
+                }
+                return false;
+              }
+              return true;
+            }}
+          >
+            {preprocessWikiLinks(getBodyContent(page.content))}
+          </Markdown>
         </View>
 
-        <View style={styles.relatedPanel}>
-          <Text style={styles.relatedTitle}>相关页面</Text>
-          <Text style={styles.relatedHint}>运行 Wiki 健康检查后自动关联</Text>
+        {/* 反向链接面板 */}
+        <View style={styles.backlinksPanel}>
+          <View style={styles.backlinksTitleRow}>
+            <Link size={14} color={Colors.aiDark} />
+            <Text style={styles.backlinksTitle}>
+              被引用 {backlinks.length > 0 ? `(${backlinks.length})` : ''}
+            </Text>
+          </View>
+          {backlinks.length === 0 ? (
+            <Text style={styles.backlinksHint}>暂无其他页面引用本页</Text>
+          ) : (
+            backlinks.map((bl) => (
+              <TouchableOpacity
+                key={bl.id}
+                style={styles.backlinkItem}
+                onPress={() => navigation.push('WikiDetail', { pageId: bl.filePath })}
+              >
+                <CategoryBadge category={bl.category} size="sm" />
+                <Text style={styles.backlinkTitle} numberOfLines={1}>{bl.title}</Text>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </ScrollView>
 
@@ -263,9 +314,34 @@ const styles = StyleSheet.create({
 
   body: { marginBottom: 24 },
 
-  relatedPanel: { backgroundColor: Colors.aiBg, borderRadius: 13, padding: 16, marginTop: 8 },
-  relatedTitle: { fontSize: 14, fontWeight: '700', color: Colors.aiDark, marginBottom: 4 },
-  relatedHint: { fontSize: 13, color: Colors.aiDark, opacity: 0.7 },
+  backlinksPanel: {
+    backgroundColor: Colors.aiBg,
+    borderRadius: 13,
+    padding: 16,
+    marginTop: 8,
+  },
+  backlinksTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  backlinksTitle: { fontSize: 14, fontWeight: '700', color: Colors.aiDark },
+  backlinksHint: { fontSize: 13, color: Colors.aiDark, opacity: 0.6 },
+  backlinkItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 6,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(76,68,168,0.12)',
+  },
+  backlinkTitle: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.aiDark,
+    fontWeight: '500',
+  },
 
   bottomBar: {
     flexDirection: 'row',

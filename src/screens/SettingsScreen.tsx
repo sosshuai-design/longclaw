@@ -27,7 +27,17 @@ import {
 import { Colors } from '../constants/colors';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
-import { PROVIDERS, PROVIDER_KEYS_ORDERED, saveApiKey, hasApiKey } from '../services/llm';
+import {
+  PROVIDERS,
+  PROVIDER_KEYS_ORDERED,
+  saveApiKey,
+  hasApiKey,
+  saveOllamaUrl,
+  getOllamaUrl,
+} from '../services/llm';
+import { exportWikiAsJSON } from '../services/wiki';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { LLMProviderKey } from '../types';
 
 // ─── API Key 管理模态框 ───────────────────────────────────────────────────────
@@ -119,12 +129,81 @@ function ApiKeyModal({
   );
 }
 
+// ─── Ollama URL 配置模态框 ────────────────────────────────────────────────────
+
+function OllamaUrlModal({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const [url, setUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  React.useEffect(() => {
+    if (visible) getOllamaUrl().then(setUrl);
+  }, [visible]);
+
+  async function handleSave() {
+    setLoading(true);
+    try {
+      await saveOllamaUrl(url.trim() || 'http://localhost:11434');
+      Alert.alert('已保存', 'Ollama 地址已更新');
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHandle} />
+          <Text style={styles.modalTitle}>Ollama 服务地址</Text>
+          <Text style={styles.modalHint}>
+            输入运行 Ollama 的设备 IP 地址，留空使用 localhost:11434。
+          </Text>
+          <TextInput
+            style={styles.keyInput}
+            value={url}
+            onChangeText={setUrl}
+            placeholder="http://localhost:11434"
+            placeholderTextColor={Colors.text.tertiary}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+          <View style={styles.modalActions}>
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={onClose}>
+              <Text style={styles.modalCancelText}>取消</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalSaveBtn, loading && { opacity: 0.5 }]}
+              onPress={handleSave}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.modalSaveText}>保存</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── SettingsScreen ────────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
   const { user, logout } = useAuthStore();
   const { activeProvider, setActiveProvider, autoLintEnabled, setAutoLint, iCloudSyncEnabled, setICloudSync } = useSettingsStore();
   const [apiKeyModal, setApiKeyModal] = useState<LLMProviderKey | null>(null);
+  const [ollamaModalVisible, setOllamaModalVisible] = useState(false);
   const rootNav = useNavigation<any>();
 
   async function handleLogout() {
@@ -135,6 +214,27 @@ export default function SettingsScreen() {
   }
 
   const initials = user?.username?.slice(0, 1).toUpperCase() ?? 'W';
+
+  async function handleExport() {
+    try {
+      const json = await exportWikiAsJSON();
+      const filename = `wikimind-export-${new Date().toISOString().slice(0, 10)}.json`;
+      const exportPath = `${FileSystem.cacheDirectory}${filename}`;
+      await FileSystem.writeAsStringAsync(exportPath, json, { encoding: FileSystem.EncodingType.UTF8 });
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(exportPath, {
+          mimeType: 'application/json',
+          dialogTitle: '导出 Wiki 数据',
+          UTI: 'public.json',
+        });
+      } else {
+        Alert.alert('导出完成', `已保存到：${exportPath}`);
+      }
+    } catch (e: any) {
+      Alert.alert('导出失败', e.message);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -189,13 +289,23 @@ export default function SettingsScreen() {
                     <Text style={styles.providerModel}>{provider.model}</Text>
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.keyBtn}
-                  onPress={() => setApiKeyModal(key)}
-                >
-                  <Key size={14} color={Colors.text.secondary} />
-                  <Text style={styles.keyBtnText}>API Key</Text>
-                </TouchableOpacity>
+                {key === 'ollama' ? (
+                  <TouchableOpacity
+                    style={styles.keyBtn}
+                    onPress={() => setOllamaModalVisible(true)}
+                  >
+                    <Key size={14} color={Colors.text.secondary} />
+                    <Text style={styles.keyBtnText}>地址</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.keyBtn}
+                    onPress={() => setApiKeyModal(key)}
+                  >
+                    <Key size={14} color={Colors.text.secondary} />
+                    <Text style={styles.keyBtnText}>API Key</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })}
@@ -220,6 +330,11 @@ export default function SettingsScreen() {
             desc="每周自动运行 Lint 检测"
             value={autoLintEnabled}
             onToggle={setAutoLint}
+          />
+          <SettingsItem
+            label="导出 Wiki 数据"
+            value="JSON"
+            onPress={handleExport}
             isLast
           />
         </View>
@@ -250,6 +365,10 @@ export default function SettingsScreen() {
           onClose={() => setApiKeyModal(null)}
         />
       )}
+      <OllamaUrlModal
+        visible={ollamaModalVisible}
+        onClose={() => setOllamaModalVisible(false)}
+      />
     </SafeAreaView>
   );
 }

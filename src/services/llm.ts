@@ -13,7 +13,7 @@ import { LLMProvider, LLMProviderKey, ChatMessage, WikiPage } from '../types';
 export const PROVIDERS: Record<LLMProviderKey, Omit<LLMProvider, 'key'>> = {
   deepseek: {
     name: 'DeepSeek',
-    baseURL: 'https://api.deepseek.com',
+    baseURL: 'https://api.deepseek.com/v1',
     model: 'deepseek-chat',
   },
   qwen: {
@@ -39,12 +39,17 @@ export const PROVIDERS: Record<LLMProviderKey, Omit<LLMProvider, 'key'>> = {
   claude: {
     name: 'Claude',
     baseURL: 'https://api.anthropic.com/v1',
-    model: 'claude-sonnet-4-5',
+    model: 'claude-sonnet-4-6',
   },
   openai: {
     name: 'OpenAI',
     baseURL: 'https://api.openai.com/v1',
     model: 'gpt-4o',
+  },
+  ollama: {
+    name: 'Ollama（本地）',
+    baseURL: 'http://localhost:11434/v1',
+    model: 'llama3',
   },
 };
 
@@ -56,10 +61,21 @@ export const PROVIDER_KEYS_ORDERED: LLMProviderKey[] = [
   'baichuan',
   'claude',
   'openai',
+  'ollama',
 ];
 
 // SecureStore 键名
 const SECURE_KEY_PREFIX = 'wikimind_apikey_';
+export const OLLAMA_URL_KEY = 'wikimind_ollama_url';
+
+export async function saveOllamaUrl(url: string): Promise<void> {
+  await SecureStore.setItemAsync(OLLAMA_URL_KEY, url.trim());
+}
+
+export async function getOllamaUrl(): Promise<string> {
+  const stored = await SecureStore.getItemAsync(OLLAMA_URL_KEY);
+  return stored?.trim() || 'http://localhost:11434';
+}
 
 // ─── API Key 管理 ─────────────────────────────────────────────────────────────
 
@@ -97,25 +113,31 @@ export async function callLLM(
   messages: LLMRequestMessage[],
   options?: { temperature?: number; maxTokens?: number }
 ): Promise<LLMResponse> {
-  const apiKey = await getApiKey(providerKey);
-  if (!apiKey) {
-    throw new Error(`未设置 ${PROVIDERS[providerKey].name} 的 API Key`);
-  }
-
   const provider = PROVIDERS[providerKey];
-  const url = `${provider.baseURL}/chat/completions`;
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${apiKey}`,
-  };
+  // Ollama: 本地服务，无需 API Key
+  let baseURL = provider.baseURL;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
-  // Claude 需要额外头部
-  if (providerKey === 'claude') {
-    headers['anthropic-version'] = '2023-06-01';
-    headers['x-api-key'] = apiKey;
-    delete headers['Authorization'];
+  if (providerKey === 'ollama') {
+    const customHost = await getOllamaUrl(); // e.g. "http://192.168.1.x:11434"
+    baseURL = `${customHost}/v1`;
+    headers['Authorization'] = 'Bearer ollama';
+  } else {
+    const apiKey = await getApiKey(providerKey);
+    if (!apiKey) {
+      throw new Error(`未设置 ${provider.name} 的 API Key`);
+    }
+    headers['Authorization'] = `Bearer ${apiKey}`;
+    // Claude 需要额外头部
+    if (providerKey === 'claude') {
+      headers['anthropic-version'] = '2023-06-01';
+      headers['x-api-key'] = apiKey;
+      delete headers['Authorization'];
+    }
   }
+
+  const url = `${baseURL}/chat/completions`;
 
   const body = JSON.stringify({
     model: provider.model,
@@ -154,24 +176,28 @@ export async function callLLMStream(
   onDone: (full: string) => void,
   options?: { temperature?: number; maxTokens?: number }
 ): Promise<void> {
-  const apiKey = await getApiKey(providerKey);
-  if (!apiKey) {
-    throw new Error(`未设置 ${PROVIDERS[providerKey].name} 的 API Key`);
-  }
-
   const provider = PROVIDERS[providerKey];
-  const url = `${provider.baseURL}/chat/completions`;
+  let baseURL = provider.baseURL;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${apiKey}`,
-  };
-
-  if (providerKey === 'claude') {
-    headers['anthropic-version'] = '2023-06-01';
-    headers['x-api-key'] = apiKey;
-    delete headers['Authorization'];
+  if (providerKey === 'ollama') {
+    const customHost = await getOllamaUrl();
+    baseURL = `${customHost}/v1`;
+    headers['Authorization'] = 'Bearer ollama';
+  } else {
+    const apiKey = await getApiKey(providerKey);
+    if (!apiKey) {
+      throw new Error(`未设置 ${provider.name} 的 API Key`);
+    }
+    headers['Authorization'] = `Bearer ${apiKey}`;
+    if (providerKey === 'claude') {
+      headers['anthropic-version'] = '2023-06-01';
+      headers['x-api-key'] = apiKey;
+      delete headers['Authorization'];
+    }
   }
+
+  const url = `${baseURL}/chat/completions`;
 
   const body = JSON.stringify({
     model: provider.model,

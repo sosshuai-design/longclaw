@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, Lock, Eye, Edit2, RefreshCw, AlertTriangle } from 'lucide-react-native';
+import { ArrowLeft, Eye, Edit2, RefreshCw, Upload, Trash2 } from 'lucide-react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import { Colors, CategoryLabels } from '../constants/colors';
 import {
   readIndex,
@@ -21,7 +22,11 @@ import {
   readSchema,
   writeSchema,
   listRawFiles,
+  listRawFilesDetailed,
+  uploadRawFile,
+  deleteRawFile,
   rebuildIndex,
+  RawFileInfo,
 } from '../services/wiki';
 import { useWikiStore } from '../store/wikiStore';
 
@@ -192,7 +197,7 @@ export default function SystemFilesScreen() {
   const [indexContent, setIndexContent] = useState('');
   const [logContent, setLogContent] = useState('');
   const [schemaContent, setSchemaContent] = useState('');
-  const [rawFiles, setRawFiles] = useState<Record<RawSection, string[]>>({
+  const [rawFiles, setRawFiles] = useState<Record<RawSection, RawFileInfo[]>>({
     articles: [],
     pdfs: [],
     audio: [],
@@ -212,10 +217,10 @@ export default function SystemFilesScreen() {
         readIndex(),
         readLog(),
         readSchema(),
-        listRawFiles('articles'),
-        listRawFiles('pdfs'),
-        listRawFiles('audio'),
-        listRawFiles('assets'),
+        listRawFilesDetailed('articles'),
+        listRawFilesDetailed('pdfs'),
+        listRawFilesDetailed('audio'),
+        listRawFilesDetailed('assets'),
       ]);
       setIndexContent(idx);
       setLogContent(log);
@@ -237,6 +242,47 @@ export default function SystemFilesScreen() {
   async function handleSaveSchema(content: string) {
     await writeSchema(content);
     setSchemaContent(content);
+  }
+
+  async function handleUploadRaw(category: RawSection) {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      const filename = asset.name;
+      await uploadRawFile(asset.uri, category, filename);
+      // 刷新该分类的文件列表
+      const updated = await listRawFilesDetailed(category);
+      setRawFiles((prev) => ({ ...prev, [category]: updated }));
+      Alert.alert('上传成功', `${filename} 已添加到 ${category}`);
+    } catch (e: any) {
+      Alert.alert('上传失败', e.message);
+    }
+  }
+
+  async function handleDeleteRaw(file: RawFileInfo) {
+    Alert.alert('删除文件', `确定删除「${file.name}」吗？`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '删除',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteRawFile(file.absolutePath);
+          const updated = await listRawFilesDetailed(file.category);
+          setRawFiles((prev) => ({ ...prev, [file.category]: updated }));
+        },
+      },
+    ]);
+  }
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
 
   async function handleRebuildIndex() {
@@ -432,43 +478,47 @@ export default function SystemFilesScreen() {
           {/* ── 原始资料 ── */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>原始资料</Text>
-            <Text style={styles.sectionHint}>raw/ 目录下的原始文件（只读）</Text>
-
-            {/* 只读警告 */}
-            <View style={styles.readonlyWarning}>
-              <AlertTriangle size={14} color={Colors.warning} />
-              <Text style={styles.readonlyText}>
-                原始资料仅供 AI 读取，App 不会修改这些文件
-              </Text>
-            </View>
+            <Text style={styles.sectionHint}>raw/ 目录 · AI Ingest 时读取</Text>
 
             <View style={styles.card}>
               {RAW_SECTIONS.map((sec, i) => {
                 const files = rawFiles[sec.key];
                 return (
                   <View key={sec.key} style={[styles.rawSection, i < RAW_SECTIONS.length - 1 && styles.rowBorder]}>
+                    {/* 分类标题行 */}
                     <View style={styles.rawSectionHeader}>
                       <Text style={styles.rawSectionIcon}>{sec.icon}</Text>
                       <Text style={styles.rawSectionLabel}>{sec.label}</Text>
                       <View style={styles.rawCountBadge}>
                         <Text style={styles.rawCountText}>{files.length}</Text>
                       </View>
-                      <Lock size={12} color={Colors.text.tertiary} />
+                      <TouchableOpacity
+                        style={styles.uploadBtn}
+                        onPress={() => handleUploadRaw(sec.key)}
+                      >
+                        <Upload size={13} color={Colors.primary} />
+                        <Text style={styles.uploadBtnText}>上传</Text>
+                      </TouchableOpacity>
                     </View>
-                    {files.length > 0 && (
+
+                    {/* 文件列表 */}
+                    {files.length > 0 ? (
                       <View style={styles.rawFileList}>
-                        {files.slice(0, 3).map((f, fi) => (
-                          <Text key={fi} style={styles.rawFileName} numberOfLines={1}>
-                            {f}
-                          </Text>
+                        {files.map((f) => (
+                          <View key={f.absolutePath} style={styles.rawFileRow}>
+                            <Text style={styles.rawFileName} numberOfLines={1}>{f.name}</Text>
+                            <Text style={styles.rawFileSize}>{formatFileSize(f.size)}</Text>
+                            <TouchableOpacity
+                              onPress={() => handleDeleteRaw(f)}
+                              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                            >
+                              <Trash2 size={13} color={Colors.lint.conflict} />
+                            </TouchableOpacity>
+                          </View>
                         ))}
-                        {files.length > 3 && (
-                          <Text style={styles.rawMore}>还有 {files.length - 3} 个文件…</Text>
-                        )}
                       </View>
-                    )}
-                    {files.length === 0 && (
-                      <Text style={styles.rawEmpty}>暂无文件</Text>
+                    ) : (
+                      <Text style={styles.rawEmpty}>暂无文件 · 点击「上传」添加</Text>
                     )}
                   </View>
                 );
@@ -581,8 +631,6 @@ const styles = StyleSheet.create({
   },
   editSchemaBtnText: { fontSize: 13, color: Colors.primary, fontWeight: '600' },
 
-  // raw
-  readonlyWarning: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
@@ -591,9 +639,13 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
   },
-  readonlyText: { fontSize: 12, color: Colors.warning, flex: 1, lineHeight: 18 },
   rawSection: { padding: 14 },
-  rawSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  rawSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
   rawSectionIcon: { fontSize: 16 },
   rawSectionLabel: { fontSize: 14, fontWeight: '600', color: Colors.text.primary, flex: 1 },
   rawCountBadge: {
@@ -603,8 +655,28 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   rawCountText: { fontSize: 12, color: Colors.text.secondary },
-  rawFileList: { paddingLeft: 4 },
-  rawFileName: { fontSize: 12, color: Colors.text.secondary, lineHeight: 20 },
-  rawMore: { fontSize: 11, color: Colors.text.tertiary, marginTop: 2 },
-  rawEmpty: { fontSize: 12, color: Colors.text.tertiary },
+  uploadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  uploadBtnText: { fontSize: 12, color: Colors.primary, fontWeight: '600' },
+  rawFileList: { gap: 2 },
+  rawFileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5,
+    gap: 8,
+  },
+  rawFileName: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.text.secondary,
+  },
+  rawFileSize: { fontSize: 11, color: Colors.text.tertiary },
+  rawEmpty: { fontSize: 12, color: Colors.text.tertiary, paddingTop: 2 },
 });

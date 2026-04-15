@@ -94,7 +94,8 @@ export type LLMProviderKey =
   | 'glm'
   | 'baichuan'
   | 'claude'
-  | 'openai';
+  | 'openai'
+  | 'ollama';
 
 export interface LLMProvider {
   key: LLMProviderKey;
