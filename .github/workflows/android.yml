@@ -14,6 +14,9 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-wikimind-apk:
     name: WikiMind assembleDebug
@@ -24,10 +27,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Set up JDK 21
@@ -39,7 +42,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
+          packages: 'platform-tools platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125'
 
       - name: Cache Gradle
         uses: actions/cache@v4
@@ -54,13 +57,22 @@ jobs:
       - name: Install npm dependencies
         run: npm ci
 
+      - name: Verify environment
+        run: |
+          echo "Node: $(node --version)"
+          echo "npm: $(npm --version)"
+          echo "Java: $(java -version 2>&1 | head -1)"
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          ls $ANDROID_HOME/platforms/ || echo "no platforms"
+          ls $ANDROID_HOME/build-tools/ || echo "no build-tools"
+
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
       - name: Assemble debug APK
         run: |
           cd android
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace --info 2>&1 | tail -100
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
