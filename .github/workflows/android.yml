@@ -69,12 +69,16 @@ jobs:
           BUILD_EXIT=${PIPESTATUS[0]}
           if [ $BUILD_EXIT -ne 0 ]; then
             echo ""
-            echo "========== KOTLIN COMPILE ERRORS =========="
-            grep -n "error:" /tmp/build.log | head -60
+            echo "=== FAILED TASKS ==="
+            grep -n "FAILED" /tmp/build.log
+
             echo ""
-            echo "========== LINES AROUND compileDebugKotlin =========="
-            grep -n "compileDebugKotlin\|\.kt:" /tmp/build.log | head -60
-            echo "========== END =========="
+            echo "=== CONTEXT AROUND FIRST FAILURE ==="
+            FAIL_LINE=$(grep -n " FAILED" /tmp/build.log | head -1 | cut -d: -f1)
+            if [ -n "$FAIL_LINE" ]; then
+              START=$((FAIL_LINE > 80 ? FAIL_LINE - 80 : 1))
+              sed -n "${START},${FAIL_LINE}p" /tmp/build.log
+            fi
           fi
           exit $BUILD_EXIT
         env:
