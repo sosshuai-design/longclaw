@@ -70,9 +70,18 @@ jobs:
         run: chmod +x android/gradlew
 
       - name: Assemble debug APK
+        id: build
         run: |
           cd android
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace --info 2>&1 | tail -100
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/build.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          if [ $BUILD_EXIT -ne 0 ]; then
+            echo ""
+            echo "========== BUILD FAILED — KEY ERRORS =========="
+            grep -E "FAILED|error:|Error |Exception|Cannot|Could not" /tmp/build.log | grep -v "^Note:" | tail -60
+            echo "========== END =========="
+          fi
+          exit $BUILD_EXIT
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
