@@ -1,9 +1,5 @@
 name: build
 
-# 构建 WikiMind React Native Debug APK
-# GitHub Runner 可以访问 Google Maven / dl.google.com，本地沙箱不行。
-# push 到任何分支都触发；APK 作为 artifact 上传，可直接下载安装。
-
 on:
   push:
     branches: ['**']
@@ -13,9 +9,6 @@ on:
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-wikimind-apk:
@@ -60,17 +53,16 @@ jobs:
       - name: Verify environment
         run: |
           echo "Node: $(node --version)"
-          echo "npm: $(npm --version)"
           echo "Java: $(java -version 2>&1 | head -1)"
           echo "ANDROID_HOME: $ANDROID_HOME"
           ls $ANDROID_HOME/platforms/ || echo "no platforms"
           ls $ANDROID_HOME/build-tools/ || echo "no build-tools"
+          ls $ANDROID_HOME/ndk/ || echo "no ndk"
 
       - name: Make gradlew executable
         run: chmod +x android/gradlew
 
       - name: Assemble debug APK
-        id: build
         run: |
           cd android
           ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee /tmp/build.log
@@ -78,7 +70,7 @@ jobs:
           if [ $BUILD_EXIT -ne 0 ]; then
             echo ""
             echo "========== BUILD FAILED — KEY ERRORS =========="
-            grep -E "FAILED|error:|Error |Exception|Cannot|Could not" /tmp/build.log | grep -v "^Note:" | tail -60
+            grep -E "FAILED|error:|Error |Exception|Cannot|Could not" /tmp/build.log | grep -v "^Note:" | tail -80
             echo "========== END =========="
           fi
           exit $BUILD_EXIT
