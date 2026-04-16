@@ -69,8 +69,11 @@ jobs:
           BUILD_EXIT=${PIPESTATUS[0]}
           if [ $BUILD_EXIT -ne 0 ]; then
             echo ""
-            echo "========== LAST 300 LINES OF BUILD LOG =========="
-            tail -300 /tmp/build.log
+            echo "========== KOTLIN COMPILE ERRORS =========="
+            grep -n "error:" /tmp/build.log | head -60
+            echo ""
+            echo "========== LINES AROUND compileDebugKotlin =========="
+            grep -n "compileDebugKotlin\|\.kt:" /tmp/build.log | head -60
             echo "========== END =========="
           fi
           exit $BUILD_EXIT
