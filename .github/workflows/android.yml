@@ -1,12 +1,8 @@
 name: build
 
-# 这个 workflow 是 MVP-1 的编译守门员：
-# 本地沙箱 / Codespaces 拉不到 Google Maven（dl.google.com 被挡），
-# 但 GitHub Runner 默认开放，所以把真正的编译验证放到这里做。
-#
-# 触发规则：push 到任何分支 + 对 main 的 PR。
-# 任务：assembleDebug —— 不跑 instrumented 测试（需要 emulator），
-# 这一步能保证整套 Kotlin/Compose/AGP 依赖链 + 源码真的能编出来。
+# 构建 WikiMind React Native Debug APK
+# GitHub Runner 可以访问 Google Maven / dl.google.com，本地沙箱不行。
+# push 到任何分支都触发；APK 作为 artifact 上传，可直接下载安装。
 
 on:
   push:
@@ -19,14 +15,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  assemble-debug:
-    name: assembleDebug
+  build-wikimind-apk:
+    name: WikiMind assembleDebug
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -37,7 +39,6 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          # 与 app/build.gradle.kts 的 compileSdk / targetSdk 对齐
           packages: 'platform-tools platforms;android-34 build-tools;34.0.0'
 
       - name: Cache Gradle
@@ -46,33 +47,28 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', 'gradle/libs.versions.toml') }}
+          key: gradle-rn-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
-            gradle-${{ runner.os }}-
+            gradle-rn-${{ runner.os }}-
+
+      - name: Install npm dependencies
+        run: npm ci
 
       - name: Make gradlew executable
-        run: chmod +x ./gradlew
-
-      - name: Run unit tests
-        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace
-
-      - name: Upload unit test report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-report
-          path: app/build/reports/tests/testDebugUnitTest
-          if-no-files-found: ignore
-          retention-days: 7
+        run: chmod +x android/gradlew
 
       - name: Assemble debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+        run: |
+          cd android
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
       - name: Upload debug APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: longclaw-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
-          if-no-files-found: warn
-          retention-days: 7
+          name: wikimind-debug-${{ github.run_number }}
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
