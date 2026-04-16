@@ -37,5 +37,9 @@ allprojects {
         google()
         mavenCentral()
         maven { url 'https://www.jitpack.io' }
+        // expo-camera 在 npm 包内附带的本地 cameraview AAR
+        maven {
+            url(new File(['node', '--print', "require.resolve('expo-camera/package.json')"].execute(null, rootDir).text.trim(), '../../android/maven'))
+        }
     }
 }
