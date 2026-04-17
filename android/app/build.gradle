@@ -39,6 +39,8 @@ react {
     // works correctly with Expo projects.
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
+    // 强制 debug 构建也内置 JS bundle，不依赖 Metro 开发服务器
+    debuggableVariants = []
 
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '..'
