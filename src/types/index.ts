@@ -128,7 +128,7 @@ export type MainTabParamList = {
 export type WikiStackParamList = {
   WikiList: undefined;
   WikiDetail: { pageId: string };
-  WikiNew: { type: 'note' | 'diary' | 'cognition' | 'wiki' };
+  WikiNew: { type: 'note' | 'diary' | 'cognition' | 'wiki' | 'link' };
   WikiEdit: { pageId: string };
 };
 

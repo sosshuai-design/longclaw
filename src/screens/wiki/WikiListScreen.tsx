@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Search, Plus, FileText, BookOpen, Lightbulb, PenLine } from 'lucide-react-native';
+import { Search, Plus, FileText, BookOpen, Lightbulb, PenLine, Link2 } from 'lucide-react-native';
 import { Colors, CategoryLabels } from '../../constants/colors';
 import { useWikiStore } from '../../store/wikiStore';
 import WikiCard from '../../components/WikiCard';
@@ -65,7 +65,7 @@ export default function WikiListScreen() {
 
   const uniqueSources = new Set(pages.map((p) => p.source)).size;
 
-  function handleNavigateToNew(type: 'note' | 'diary' | 'cognition' | 'wiki') {
+  function handleNavigateToNew(type: 'note' | 'diary' | 'cognition' | 'wiki' | 'link') {
     setFabOpen(false);
     Animated.spring(fabAnim, { toValue: 0, useNativeDriver: true }).start();
     navigation.navigate('WikiNew', { type });
@@ -76,6 +76,7 @@ export default function WikiListScreen() {
     { type: 'diary' as const, label: '日常记录', color: Colors.fab.diary, Icon: FileText },
     { type: 'cognition' as const, label: '认知总结', color: Colors.fab.cognition, Icon: Lightbulb },
     { type: 'wiki' as const, label: '知识页面', color: Colors.fab.wiki, Icon: BookOpen },
+    { type: 'link' as const, label: '链接导入', color: '#1677ff', Icon: Link2 },
   ];
 
   return (

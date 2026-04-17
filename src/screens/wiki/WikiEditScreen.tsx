@@ -1,20 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   ScrollView,
+  FlatList,
+  Modal,
   StyleSheet,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp, RouteProp } from '@react-navigation/stack';
-import { ArrowLeft, Check } from 'lucide-react-native';
-import { Colors } from '../../constants/colors';
+import { ArrowLeft, Check, Link2, X } from 'lucide-react-native';
+import { Colors, CategoryLabels } from '../../constants/colors';
 import { useWikiStore } from '../../store/wikiStore';
-import { WikiStackParamList, WikiCategory } from '../../types';
+import { WikiStackParamList, WikiCategory, WikiPage } from '../../types';
 
 type Props = {
   navigation: StackNavigationProp<WikiStackParamList, 'WikiEdit'>;
@@ -42,6 +44,9 @@ export default function WikiEditScreen({ navigation, route }: Props) {
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [cursorPos, setCursorPos] = useState(0);
 
   useEffect(() => {
     const page = pages.find((p) => p.filePath === pageId || p.id === pageId);
@@ -49,7 +54,6 @@ export default function WikiEditScreen({ navigation, route }: Props) {
       setTitle(page.title);
       setCategory(page.category);
       setTagsText(page.tags.join(', '));
-      // Strip YAML front matter — show only the body
       const body = page.content.replace(/^---[\s\S]*?---\n/, '').trim();
       setContent(body);
       setInitialized(true);
@@ -63,10 +67,7 @@ export default function WikiEditScreen({ navigation, route }: Props) {
     }
     setLoading(true);
     try {
-      const tags = tagsText
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean);
+      const tags = tagsText.split(',').map((t) => t.trim()).filter(Boolean);
       await editPage(pageId, { title: title.trim(), category, tags, content });
       navigation.goBack();
     } catch (e: any) {
@@ -75,6 +76,26 @@ export default function WikiEditScreen({ navigation, route }: Props) {
       setLoading(false);
     }
   }
+
+  function insertWikiLink(pageTitle: string) {
+    const link = `[[${pageTitle}]]`;
+    const before = content.slice(0, cursorPos);
+    const after = content.slice(cursorPos);
+    const newContent = before + link + after;
+    setContent(newContent);
+    setCursorPos(cursorPos + link.length);
+    setPickerVisible(false);
+    setPickerSearch('');
+  }
+
+  const otherPages = pages.filter(
+    (p) => p.filePath !== pageId && p.id !== pageId
+  );
+  const filteredPages = pickerSearch
+    ? otherPages.filter((p) =>
+        p.title.toLowerCase().includes(pickerSearch.toLowerCase())
+      )
+    : otherPages;
 
   if (!initialized) {
     return (
@@ -150,11 +171,21 @@ export default function WikiEditScreen({ navigation, route }: Props) {
         />
 
         {/* 正文 */}
-        <Text style={styles.label}>正文（Markdown）</Text>
+        <View style={styles.contentLabelRow}>
+          <Text style={styles.label}>正文（Markdown）</Text>
+          <TouchableOpacity
+            style={styles.linkPickerBtn}
+            onPress={() => setPickerVisible(true)}
+          >
+            <Link2 size={13} color={Colors.primary} />
+            <Text style={styles.linkPickerBtnText}>插入 [[链接]]</Text>
+          </TouchableOpacity>
+        </View>
         <TextInput
           style={[styles.input, styles.contentInput]}
           value={content}
           onChangeText={setContent}
+          onSelectionChange={(e) => setCursorPos(e.nativeEvent.selection.start)}
           placeholder="支持 Markdown，用 [[页面标题]] 创建内部链接"
           placeholderTextColor={Colors.text.tertiary}
           multiline
@@ -173,6 +204,56 @@ export default function WikiEditScreen({ navigation, route }: Props) {
           )}
         </TouchableOpacity>
       </ScrollView>
+
+      {/* [[链接]] 选择器 Modal */}
+      <Modal
+        visible={pickerVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPickerVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>选择页面链接</Text>
+              <TouchableOpacity onPress={() => { setPickerVisible(false); setPickerSearch(''); }}>
+                <X size={20} color={Colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+            <TextInput
+              style={styles.modalSearch}
+              value={pickerSearch}
+              onChangeText={setPickerSearch}
+              placeholder="搜索页面…"
+              placeholderTextColor={Colors.text.tertiary}
+              autoFocus
+            />
+            <FlatList
+              data={filteredPages}
+              keyExtractor={(p) => p.id}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.pickerItem}
+                  onPress={() => insertWikiLink(item.title)}
+                >
+                  <View style={styles.pickerItemCat}>
+                    <Text style={styles.pickerCatText}>
+                      {CategoryLabels[item.category] ?? item.category}
+                    </Text>
+                  </View>
+                  <Text style={styles.pickerItemTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <Text style={styles.pickerEmpty}>暂无其他页面</Text>
+              }
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -234,6 +315,26 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
+  contentLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  linkPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryLight,
+  },
+  linkPickerBtnText: { fontSize: 12, fontWeight: '600', color: Colors.primary },
+
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     paddingHorizontal: 13,
@@ -255,4 +356,63 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveFullBtnText: { fontSize: 15, fontWeight: '600', color: '#fff' },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '70%',
+    paddingBottom: 32,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border,
+  },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: Colors.text.primary },
+  modalSearch: {
+    margin: 14,
+    borderWidth: 0.5,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: Colors.text.primary,
+    backgroundColor: Colors.surface,
+  },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    gap: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border,
+  },
+  pickerItemCat: {
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  pickerCatText: { fontSize: 11, fontWeight: '600', color: Colors.primary },
+  pickerItemTitle: { flex: 1, fontSize: 15, color: Colors.text.primary },
+  pickerEmpty: {
+    textAlign: 'center',
+    color: Colors.text.tertiary,
+    paddingVertical: 32,
+    fontSize: 14,
+  },
 });

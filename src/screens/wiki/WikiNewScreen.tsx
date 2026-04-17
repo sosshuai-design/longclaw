@@ -11,11 +11,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StackNavigationProp, RouteProp } from '@react-navigation/stack';
-import { ArrowLeft, Sparkles } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, Link2 } from 'lucide-react-native';
 import { Colors } from '../../constants/colors';
 import { useWikiStore } from '../../store/wikiStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { callLLM } from '../../services/llm';
+import { fetchAndParseUrl } from '../../services/urlFetch';
 import { WikiStackParamList, WikiCategory } from '../../types';
 
 type Props = {
@@ -252,6 +253,118 @@ function WikiPageForm({ onSave }: { onSave: (d: any) => void }) {
   );
 }
 
+// ─── 链接导入 ─────────────────────────────────────────────────────────────────
+
+function LinkForm({
+  onSave,
+  onSaveWithAI,
+  aiLoading,
+}: {
+  onSave: (d: any) => void;
+  onSaveWithAI: (d: any) => void;
+  aiLoading?: boolean;
+}) {
+  const [url, setUrl] = useState('');
+  const [fetchedTitle, setFetchedTitle] = useState('');
+  const [fetchedText, setFetchedText] = useState('');
+  const [fetching, setFetching] = useState(false);
+
+  async function handleFetch() {
+    const trimmed = url.trim();
+    if (!trimmed) {
+      Alert.alert('提示', '请先粘贴链接');
+      return;
+    }
+    setFetching(true);
+    try {
+      const result = await fetchAndParseUrl(trimmed);
+      setFetchedTitle(result.title);
+      setFetchedText(result.text);
+    } catch (e: any) {
+      Alert.alert('抓取失败', e.message ?? '无法访问该链接，请检查网络');
+    } finally {
+      setFetching(false);
+    }
+  }
+
+  const hasContent = fetchedText.length > 0;
+
+  return (
+    <View style={styles.form}>
+      <Text style={styles.fieldLabel}>链接地址</Text>
+      <View style={styles.urlRow}>
+        <TextInput
+          style={[styles.input, styles.urlInput]}
+          value={url}
+          onChangeText={setUrl}
+          placeholder="粘贴链接，支持微信公众号"
+          placeholderTextColor={Colors.text.tertiary}
+          autoCapitalize="none"
+          autoCorrect={false}
+          keyboardType="url"
+        />
+        <TouchableOpacity
+          style={[styles.fetchBtn, fetching && { opacity: 0.6 }]}
+          onPress={handleFetch}
+          disabled={fetching}
+        >
+          {fetching ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.fetchBtnText}>抓取</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {hasContent && (
+        <>
+          <Text style={styles.fieldLabel}>标题</Text>
+          <TextInput
+            style={styles.input}
+            value={fetchedTitle}
+            onChangeText={setFetchedTitle}
+            placeholderTextColor={Colors.text.tertiary}
+            placeholder="文章标题"
+          />
+
+          <Text style={styles.fieldLabel}>抓取内容（可编辑）</Text>
+          <TextInput
+            style={[styles.input, styles.inputMultiLarge]}
+            value={fetchedText}
+            onChangeText={setFetchedText}
+            multiline
+            placeholderTextColor={Colors.text.tertiary}
+            textAlignVertical="top"
+          />
+
+          <View style={styles.btnRow}>
+            <TouchableOpacity
+              style={[styles.aiSaveBtn, aiLoading && { opacity: 0.5 }]}
+              onPress={() => onSaveWithAI({ title: fetchedTitle, content: fetchedText, url })}
+              disabled={aiLoading}
+            >
+              {aiLoading ? (
+                <ActivityIndicator size="small" color={Colors.ai} />
+              ) : (
+                <>
+                  <Sparkles size={14} color={Colors.ai} />
+                  <Text style={styles.aiSaveBtnText}>AI 解析存入</Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.directSaveBtn}
+              onPress={() => onSave({ title: fetchedTitle, content: fetchedText, url })}
+            >
+              <Text style={styles.directSaveBtnText}>直接存入</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
 // ─── WikiNewScreen ────────────────────────────────────────────────────────────
 
 const TYPE_CONFIG = {
@@ -259,6 +372,7 @@ const TYPE_CONFIG = {
   diary: { title: '日常记录', color: Colors.fab.diary },
   cognition: { title: '认知总结', color: Colors.fab.cognition },
   wiki: { title: '知识页面', color: Colors.fab.wiki },
+  link: { title: '链接导入', color: '#1677ff' },
 };
 
 export default function WikiNewScreen({ navigation, route }: Props) {
@@ -301,6 +415,11 @@ export default function WikiNewScreen({ navigation, route }: Props) {
         content = `${data.content}\n\n## 相关概念\n\n${data.related}`;
         category = data.category;
         tags = data.tags ? data.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [];
+      } else if (type === 'link') {
+        title = title || '链接笔记';
+        content = `> 来源：${data.url}\n\n${data.content}`;
+        category = 'summary';
+        tags = ['链接', '导入'];
       }
 
       await addPage({ title, category, tags, source: 'manual', content });
@@ -315,16 +434,18 @@ export default function WikiNewScreen({ navigation, route }: Props) {
   async function handleSaveWithAI(data: any) {
     const rawContent = data.content?.trim();
     if (!rawContent) {
-      Alert.alert('提示', '请先填写内容');
+      Alert.alert('提示', '请先填写或抓取内容');
       return;
     }
     setAiLoading(true);
     try {
-      const prompt = `你是一个个人知识库助手。请将下面的笔记整理为结构清晰的 Markdown 格式：\n\n原始内容：\n${rawContent}\n\n要求：\n- 补充合适的二级标题（##）\n- 提炼核心要点为要点列表\n- 保留所有原始信息，不要删改语义\n- 只输出整理后的 Markdown，不要解释`;
-      const response = await callLLM(activeProvider, [
-        { role: 'user', content: prompt },
-      ]);
-      // 用 AI 整理后的内容替换原内容再保存
+      let prompt: string;
+      if (type === 'link') {
+        prompt = `你是一个个人知识库助手。请将下面的网页内容整理为结构清晰的 Wiki 摘要：\n\n来源：${data.url}\n标题：${data.title}\n\n原始内容：\n${rawContent}\n\n要求：\n- 提炼核心观点，用二级标题（##）分组\n- 列出关键要点\n- 末尾加"## 相关概念"列出 2-3 个关联知识点（用 [[页面]] 格式）\n- 简体中文，只输出 Markdown，不要解释`;
+      } else {
+        prompt = `你是一个个人知识库助手。请将下面的笔记整理为结构清晰的 Markdown 格式：\n\n原始内容：\n${rawContent}\n\n要求：\n- 补充合适的二级标题（##）\n- 提炼核心要点为要点列表\n- 保留所有原始信息，不要删改语义\n- 只输出整理后的 Markdown，不要解释`;
+      }
+      const response = await callLLM(activeProvider, [{ role: 'user', content: prompt }]);
       await handleSave({ ...data, content: response.content });
     } catch (e: any) {
       Alert.alert('AI 整理失败', e.message ?? '请检查 API Key 或网络');
@@ -355,15 +476,14 @@ export default function WikiNewScreen({ navigation, route }: Props) {
         showsVerticalScrollIndicator={false}
       >
         {type === 'note' && (
-          <NoteForm
-            onSave={handleSave}
-            onSaveWithAI={handleSaveWithAI}
-            aiLoading={aiLoading}
-          />
+          <NoteForm onSave={handleSave} onSaveWithAI={handleSaveWithAI} aiLoading={aiLoading} />
         )}
         {type === 'diary' && <DiaryForm onSave={handleSave} />}
         {type === 'cognition' && <CognitionForm onSave={handleSave} />}
         {type === 'wiki' && <WikiPageForm onSave={handleSave} />}
+        {type === 'link' && (
+          <LinkForm onSave={handleSave} onSaveWithAI={handleSaveWithAI} aiLoading={aiLoading} />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -429,6 +549,18 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   chipText: { fontSize: 13, color: Colors.text.secondary },
   chipTextActive: { color: '#fff', fontWeight: '600' },
+
+  urlRow: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
+  urlInput: { flex: 1 },
+  fetchBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingHorizontal: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 64,
+  },
+  fetchBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
 
   btnRow: { flexDirection: 'row', gap: 12, marginTop: 28 },
   aiSaveBtn: {

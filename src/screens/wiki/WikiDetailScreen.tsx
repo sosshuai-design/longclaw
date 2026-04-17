@@ -49,6 +49,16 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
     );
   }, [page, pages]);
 
+  // 正向链接：本页通过 [[Title]] 链接到的其他页面
+  const outgoingLinks = useMemo(() => {
+    if (!page) return [];
+    const matches = [...page.content.matchAll(/\[\[([^\]]+)\]\]/g)];
+    const titles = [...new Set(matches.map((m) => m[1]))];
+    return titles
+      .map((t) => pages.find((p) => p.title === t))
+      .filter((p): p is WikiPage => p !== undefined);
+  }, [page, pages]);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -192,6 +202,28 @@ export default function WikiDetailScreen({ navigation, route }: Props) {
           </Markdown>
         </View>
 
+        {/* 正向链接面板 */}
+        {outgoingLinks.length > 0 && (
+          <View style={[styles.backlinksPanel, styles.outgoingPanel]}>
+            <View style={styles.backlinksTitleRow}>
+              <Link size={14} color={Colors.lint.suggest} />
+              <Text style={[styles.backlinksTitle, { color: Colors.lint.suggest }]}>
+                链接至 ({outgoingLinks.length})
+              </Text>
+            </View>
+            {outgoingLinks.map((ol) => (
+              <TouchableOpacity
+                key={ol.id}
+                style={styles.backlinkItem}
+                onPress={() => navigation.push('WikiDetail', { pageId: ol.filePath })}
+              >
+                <CategoryBadge category={ol.category} size="sm" />
+                <Text style={[styles.backlinkTitle, { color: Colors.lint.suggest }]} numberOfLines={1}>{ol.title}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* 反向链接面板 */}
         <View style={styles.backlinksPanel}>
           <View style={styles.backlinksTitleRow}>
@@ -319,6 +351,10 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     padding: 16,
     marginTop: 8,
+  },
+  outgoingPanel: {
+    backgroundColor: '#EBF2FD',
+    marginBottom: 8,
   },
   backlinksTitleRow: {
     flexDirection: 'row',
