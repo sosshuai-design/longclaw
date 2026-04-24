@@ -98,9 +98,15 @@ export async function hasApiKey(provider: LLMProviderKey): Promise<boolean> {
 
 // ─── LLM 请求 ─────────────────────────────────────────────────────────────────
 
+type ContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image_url'; image_url: { url: string } };
+
+export type MessageContent = string | ContentPart[];
+
 interface LLMRequestMessage {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: MessageContent;
 }
 
 interface LLMResponse {
@@ -345,4 +351,34 @@ export function stripWikiActions(aiResponse: string): string {
 export function extractWikiRefs(content: string): string[] {
   const matches = content.matchAll(/\[\[([^\]]+)\]\]/g);
   return [...matches].map((m) => m[1]);
+}
+
+// ─── 语音转文字（OpenAI Whisper） ────────────────────────────────────────────
+
+export async function transcribeAudio(audioUri: string): Promise<string> {
+  const apiKey = await getApiKey('openai');
+  if (!apiKey) throw new Error('需要 OpenAI API Key 才能使用语音转文字');
+
+  const formData = new FormData();
+  formData.append('file', {
+    uri: audioUri,
+    name: 'recording.m4a',
+    type: 'audio/m4a',
+  } as any);
+  formData.append('model', 'whisper-1');
+  formData.append('language', 'zh');
+
+  const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Whisper 识别失败 (${response.status}): ${err}`);
+  }
+
+  const data = await response.json();
+  return (data.text ?? '').trim();
 }

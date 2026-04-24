@@ -13,7 +13,7 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, RouteProp } from '@react-navigation/native';
+import { useRoute, RouteProp, useNavigation } from '@react-navigation/native';
 import {
   Link2,
   FileText,
@@ -24,11 +24,12 @@ import {
   Send,
   X,
   ChevronDown,
+  Search,
 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 
-import { Colors } from '../constants/colors';
+import { Colors, CategoryLabels } from '../constants/colors';
 import { useChatStore } from '../store/chatStore';
 import { useWikiStore } from '../store/wikiStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -41,8 +42,8 @@ import {
   extractWikiRefs,
   PROVIDERS,
 } from '../services/llm';
-import { readSchema, readIndex, listAllWikiPages } from '../services/wiki';
-import { ChatMessage, Attachment, MainTabParamList, WikiCategory, WikiSource } from '../types';
+import { readSchema, readIndex } from '../services/wiki';
+import { ChatMessage, Attachment, MainTabParamList, WikiCategory, WikiSource, WikiPage } from '../types';
 
 type RouteProps = RouteProp<MainTabParamList, 'Chat'>;
 
@@ -51,9 +52,11 @@ type RouteProps = RouteProp<MainTabParamList, 'Chat'>;
 function MessageBubble({
   msg,
   onSaveToWiki,
+  onWikiRefPress,
 }: {
   msg: ChatMessage;
   onSaveToWiki?: (msg: ChatMessage) => void;
+  onWikiRefPress?: (pageId: string, title: string) => void;
 }) {
   const isUser = msg.role === 'user';
 
@@ -72,14 +75,19 @@ function MessageBubble({
         ))}
         <Text style={[styles.bubbleText, isUser && styles.bubbleTextUser]}>{msg.content}</Text>
 
-        {/* Wiki 引用卡片 */}
+        {/* Wiki 引用卡片 — 可点击跳转 */}
         {msg.wikiRefs && msg.wikiRefs.length > 0 && (
           <View style={styles.wikiRefs}>
             {msg.wikiRefs.map((ref) => (
-              <View key={ref.pageId} style={styles.wikiRefChip}>
+              <TouchableOpacity
+                key={ref.pageId}
+                style={styles.wikiRefChip}
+                onPress={() => onWikiRefPress?.(ref.pageId, ref.title)}
+                activeOpacity={0.7}
+              >
                 <BookOpen size={12} color={Colors.primary} />
                 <Text style={styles.wikiRefText}>{ref.title}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}
@@ -95,6 +103,69 @@ function MessageBubble({
         )}
       </View>
     </View>
+  );
+}
+
+// ─── Wiki 页面选择器 ──────────────────────────────────────────────────────────
+
+function WikiPickerModal({
+  visible,
+  pages,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  pages: WikiPage[];
+  onClose: () => void;
+  onSelect: (page: WikiPage) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const filtered = search
+    ? pages.filter((p) => p.title.toLowerCase().includes(search.toLowerCase()))
+    : pages;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalSheet}>
+          <View style={styles.modalHandle} />
+          <View style={styles.pickerHeaderRow}>
+            <Text style={styles.modalTitle}>引用 Wiki 页面</Text>
+            <TouchableOpacity onPress={onClose}>
+              <X size={20} color={Colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.pickerSearchRow}>
+            <Search size={14} color={Colors.text.tertiary} />
+            <TextInput
+              style={styles.pickerSearch}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="搜索页面…"
+              placeholderTextColor={Colors.text.tertiary}
+              autoFocus
+            />
+          </View>
+          <FlatList
+            data={filtered}
+            keyExtractor={(p) => p.id}
+            keyboardShouldPersistTaps="handled"
+            style={{ maxHeight: 380 }}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.pickerItem} onPress={() => { onSelect(item); onClose(); }}>
+                <View style={styles.pickerCatBadge}>
+                  <Text style={styles.pickerCatText}>{CategoryLabels[item.category] ?? item.category}</Text>
+                </View>
+                <Text style={styles.pickerItemTitle} numberOfLines={1}>{item.title}</Text>
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.pickerEmpty}>暂无匹配页面</Text>
+            }
+          />
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -180,6 +251,7 @@ function SaveToWikiModal({
 
 export default function ChatScreen() {
   const route = useRoute<RouteProps>();
+  const rootNav = useNavigation<any>();
   const initialMode = route.params?.mode ?? 'ingest';
 
   const {
@@ -206,6 +278,7 @@ export default function ChatScreen() {
   const [urlMode, setUrlMode] = useState(false);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [pendingSaveMsg, setPendingSaveMsg] = useState<ChatMessage | null>(null);
+  const [wikiPickerVisible, setWikiPickerVisible] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const providerName = PROVIDERS[activeProvider]?.name ?? 'AI';
@@ -317,8 +390,13 @@ export default function ChatScreen() {
   function buildUserContent(text: string, attachments: Attachment[]): string {
     if (attachments.length === 0) return text;
     const attDesc = attachments
-      .map((a) => `[附件: ${a.name}${a.text ? ` 内容: ${a.text.slice(0, 500)}` : ''}]`)
-      .join('\n');
+      .map((a) => {
+        if (a.type === 'wikiRef' && a.text) {
+          return `[Wiki页面《${a.name.replace('📖 ', '')}》：\n${a.text}]`;
+        }
+        return `[附件: ${a.name}${a.text ? ` 内容: ${a.text.slice(0, 500)}` : ''}]`;
+      })
+      .join('\n\n');
     return `${attDesc}\n\n${text}`;
   }
 
@@ -362,6 +440,31 @@ export default function ChatScreen() {
       content: pendingSaveMsg.content,
     });
     Alert.alert('已保存', `「${title}」已存入 Wiki`);
+  }
+
+  // Wiki 引用芯片点击 → 跳转到 WikiDetail
+  function handleWikiRefPress(refPageId: string, title: string) {
+    const found = pages.find((p) => p.filePath === refPageId || p.id === refPageId || p.title === title);
+    if (found) {
+      rootNav.navigate('Main', {
+        screen: 'Wiki',
+        params: { screen: 'WikiDetail', params: { pageId: found.filePath } },
+      });
+    } else {
+      Alert.alert('页面不存在', `未找到「${title}」`);
+    }
+  }
+
+  // Wiki 页面选择器：选择后将页面内容作为附件附到下一条消息
+  function handleWikiPageSelect(page: WikiPage) {
+    const body = page.content.replace(/^---[\s\S]*?---\n/, '').trim().slice(0, 800);
+    addAttachment({
+      id: `att_${Date.now()}`,
+      type: 'wikiRef',
+      name: `📖 ${page.title}`,
+      wikiPageId: page.filePath,
+      text: body,
+    });
   }
 
   const modeLabel = mode === 'ingest' ? 'Ingest' : 'Query';
@@ -424,7 +527,11 @@ export default function ChatScreen() {
           data={messages}
           keyExtractor={(m) => m.id}
           renderItem={({ item }) => (
-            <MessageBubble msg={item} onSaveToWiki={handleSaveToWiki} />
+            <MessageBubble
+              msg={item}
+              onSaveToWiki={handleSaveToWiki}
+              onWikiRefPress={handleWikiRefPress}
+            />
           )}
           contentContainerStyle={styles.msgList}
           ListEmptyComponent={
@@ -497,10 +604,10 @@ export default function ChatScreen() {
               <Camera size={18} color={Colors.text.secondary} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.toolBtn}
-              onPress={() => Alert.alert('Wiki 引用', '即将上线')}
+              style={[styles.toolBtn, wikiPickerVisible && { backgroundColor: Colors.primaryLight }]}
+              onPress={() => setWikiPickerVisible(true)}
             >
-              <BookOpen size={18} color={Colors.text.secondary} />
+              <BookOpen size={18} color={wikiPickerVisible ? Colors.primary : Colors.text.secondary} />
             </TouchableOpacity>
           </View>
 
@@ -533,6 +640,13 @@ export default function ChatScreen() {
         visible={saveModalVisible}
         onClose={() => setSaveModalVisible(false)}
         onSave={handleConfirmSave}
+      />
+
+      <WikiPickerModal
+        visible={wikiPickerVisible}
+        pages={pages}
+        onClose={() => setWikiPickerVisible(false)}
+        onSelect={handleWikiPageSelect}
       />
     </SafeAreaView>
   );
@@ -808,4 +922,51 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalSaveText: { fontSize: 15, fontWeight: '600', color: '#fff' },
+
+  // Wiki 选择器
+  pickerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 12,
+  },
+  pickerSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: Colors.border,
+    gap: 8,
+  },
+  pickerSearch: { flex: 1, fontSize: 14, color: Colors.text.primary },
+  pickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    gap: 10,
+    borderBottomWidth: 0.5,
+    borderBottomColor: Colors.border,
+  },
+  pickerCatBadge: {
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 5,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  pickerCatText: { fontSize: 11, fontWeight: '600', color: Colors.primary },
+  pickerItemTitle: { flex: 1, fontSize: 14, color: Colors.text.primary },
+  pickerEmpty: {
+    textAlign: 'center',
+    color: Colors.text.tertiary,
+    paddingVertical: 32,
+    fontSize: 14,
+  },
 });
