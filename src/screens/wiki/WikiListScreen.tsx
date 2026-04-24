@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Search, Plus, FileText, BookOpen, Lightbulb, PenLine, Link2 } from 'lucide-react-native';
+import { Search, Plus, FileText, BookOpen, Lightbulb, PenLine, Link2, Share2 } from 'lucide-react-native';
 import { Colors, CategoryLabels } from '../../constants/colors';
 import { useWikiStore } from '../../store/wikiStore';
 import WikiCard from '../../components/WikiCard';
@@ -89,9 +89,14 @@ export default function WikiListScreen() {
             {pages.length} 个页面 · {uniqueSources} 类来源
           </Text>
         </View>
-        <TouchableOpacity onPress={() => rootNav.navigate('Search')} style={styles.searchBtn}>
-          <Search size={20} color={Colors.text.secondary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity onPress={() => navigation.navigate('WikiGraph')} style={styles.searchBtn}>
+            <Share2 size={20} color={Colors.text.secondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => rootNav.navigate('Search')} style={styles.searchBtn}>
+            <Search size={20} color={Colors.text.secondary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 搜索框 */}

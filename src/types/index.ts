@@ -130,6 +130,7 @@ export type WikiStackParamList = {
   WikiDetail: { pageId: string };
   WikiNew: { type: 'note' | 'diary' | 'cognition' | 'wiki' | 'link' };
   WikiEdit: { pageId: string };
+  WikiGraph: undefined;
 };
 
 export type RootStackParamList = {

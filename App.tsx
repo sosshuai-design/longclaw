@@ -29,6 +29,7 @@ import WikiListScreen from './src/screens/wiki/WikiListScreen';
 import WikiDetailScreen from './src/screens/wiki/WikiDetailScreen';
 import WikiNewScreen from './src/screens/wiki/WikiNewScreen';
 import WikiEditScreen from './src/screens/wiki/WikiEditScreen';
+import WikiGraphScreen from './src/screens/wiki/WikiGraphScreen';
 
 import {
   AuthStackParamList,
@@ -70,6 +71,7 @@ function WikiNavigator() {
       <WikiStack.Screen name="WikiDetail" component={WikiDetailScreen} />
       <WikiStack.Screen name="WikiNew" component={WikiNewScreen} />
       <WikiStack.Screen name="WikiEdit" component={WikiEditScreen} />
+      <WikiStack.Screen name="WikiGraph" component={WikiGraphScreen} />
     </WikiStack.Navigator>
   );
 }

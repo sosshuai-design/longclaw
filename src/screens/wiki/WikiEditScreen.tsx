@@ -47,6 +47,7 @@ export default function WikiEditScreen({ navigation, route }: Props) {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [pickerSearch, setPickerSearch] = useState('');
   const [cursorPos, setCursorPos] = useState(0);
+  const [linkQuery, setLinkQuery] = useState<string | null>(null);
 
   useEffect(() => {
     const page = pages.find((p) => p.filePath === pageId || p.id === pageId);
@@ -77,6 +78,14 @@ export default function WikiEditScreen({ navigation, route }: Props) {
     }
   }
 
+  function handleContentChange(text: string) {
+    setContent(text);
+    // Detect [[ trigger for auto-suggest
+    const textUpToCursor = text.slice(0, cursorPos + (text.length - content.length));
+    const match = textUpToCursor.match(/\[\[([^\]]*)$/);
+    setLinkQuery(match ? match[1] : null);
+  }
+
   function insertWikiLink(pageTitle: string) {
     const link = `[[${pageTitle}]]`;
     const before = content.slice(0, cursorPos);
@@ -87,6 +96,26 @@ export default function WikiEditScreen({ navigation, route }: Props) {
     setPickerVisible(false);
     setPickerSearch('');
   }
+
+  function insertSuggestion(pageTitle: string) {
+    // Replace the partial [[query with [[Title]]
+    const triggerIdx = content.slice(0, cursorPos).lastIndexOf('[[');
+    if (triggerIdx === -1) return;
+    const before = content.slice(0, triggerIdx);
+    const after = content.slice(cursorPos);
+    const inserted = `[[${pageTitle}]]`;
+    setContent(before + inserted + after);
+    setCursorPos(triggerIdx + inserted.length);
+    setLinkQuery(null);
+  }
+
+  const otherPages = pages.filter((p) => p.filePath !== pageId && p.id !== pageId);
+  const suggestions =
+    linkQuery !== null
+      ? otherPages.filter((p) =>
+          linkQuery === '' || p.title.toLowerCase().includes(linkQuery.toLowerCase())
+        ).slice(0, 8)
+      : [];
 
   const otherPages = pages.filter(
     (p) => p.filePath !== pageId && p.id !== pageId
@@ -181,10 +210,31 @@ export default function WikiEditScreen({ navigation, route }: Props) {
             <Text style={styles.linkPickerBtnText}>插入 [[链接]]</Text>
           </TouchableOpacity>
         </View>
+        {/* [[链接]] 自动提示条 */}
+        {suggestions.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            style={styles.suggestRow}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 4, paddingVertical: 4 }}
+          >
+            {suggestions.map((p) => (
+              <TouchableOpacity
+                key={p.id}
+                style={styles.suggestChip}
+                onPress={() => insertSuggestion(p.title)}
+              >
+                <Text style={styles.suggestChipText}>{p.title}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+
         <TextInput
           style={[styles.input, styles.contentInput]}
           value={content}
-          onChangeText={setContent}
+          onChangeText={handleContentChange}
           onSelectionChange={(e) => setCursorPos(e.nativeEvent.selection.start)}
           placeholder="支持 Markdown，用 [[页面标题]] 创建内部链接"
           placeholderTextColor={Colors.text.tertiary}
@@ -415,4 +465,19 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     fontSize: 14,
   },
+
+  // [[ 自动提示
+  suggestRow: {
+    marginBottom: 6,
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 8,
+    maxHeight: 44,
+  },
+  suggestChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 6,
+  },
+  suggestChipText: { fontSize: 13, fontWeight: '600', color: '#fff' },
 });
