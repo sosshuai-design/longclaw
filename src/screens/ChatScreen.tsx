@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { Audio } from 'expo-av';
 
 import { Colors, CategoryLabels } from '../constants/colors';
 import { useChatStore } from '../store/chatStore';
@@ -40,6 +41,7 @@ import {
   parseWikiActions,
   stripWikiActions,
   extractWikiRefs,
+  transcribeAudio,
   PROVIDERS,
 } from '../services/llm';
 import { readSchema, readIndex } from '../services/wiki';
@@ -279,6 +281,9 @@ export default function ChatScreen() {
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [pendingSaveMsg, setPendingSaveMsg] = useState<ChatMessage | null>(null);
   const [wikiPickerVisible, setWikiPickerVisible] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const recordingRef = useRef<Audio.Recording | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
   const providerName = PROVIDERS[activeProvider]?.name ?? 'AI';
@@ -467,6 +472,64 @@ export default function ChatScreen() {
     });
   }
 
+  // ─── 语音录入 ────────────────────────────────────────────────────────────────
+
+  async function handleMicPress() {
+    if (isRecording) {
+      await stopRecording();
+    } else {
+      await startRecording();
+    }
+  }
+
+  async function startRecording() {
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('需要麦克风权限', '请在系统设置中允许 WikiMind 使用麦克风');
+        return;
+      }
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      recordingRef.current = recording;
+      setIsRecording(true);
+    } catch (e: any) {
+      Alert.alert('录音失败', e.message);
+    }
+  }
+
+  async function stopRecording() {
+    setIsRecording(false);
+    const rec = recordingRef.current;
+    recordingRef.current = null;
+    if (!rec) return;
+
+    try {
+      await rec.stopAndUnloadAsync();
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
+      const uri = rec.getURI();
+      if (!uri) return;
+
+      setIsTranscribing(true);
+      try {
+        const text = await transcribeAudio(uri);
+        if (text) {
+          setInputText((prev) => prev ? `${prev} ${text}` : text);
+        }
+      } catch (err: any) {
+        // Whisper 不可用时退回附件
+        addAttachment({ id: `att_${Date.now()}`, type: 'audio', name: '语音消息', uri });
+        Alert.alert('语音识别提示', `转文字需要 OpenAI Key（${err.message}），已将录音作为附件附上`);
+      } finally {
+        setIsTranscribing(false);
+      }
+    } catch (e: any) {
+      Alert.alert('录音处理失败', e.message);
+    }
+  }
+
   const modeLabel = mode === 'ingest' ? 'Ingest' : 'Query';
   const placeholder =
     mode === 'ingest'
@@ -579,6 +642,16 @@ export default function ChatScreen() {
           </View>
         )}
 
+        {/* 录音状态条 */}
+        {(isRecording || isTranscribing) && (
+          <View style={styles.recordingBar}>
+            <ActivityIndicator size="small" color={Colors.error} />
+            <Text style={styles.recordingText}>
+              {isTranscribing ? '正在识别语音…' : '录音中，再按一次停止'}
+            </Text>
+          </View>
+        )}
+
         {/* 工具栏 + 输入框 */}
         <View style={styles.inputArea}>
           <View style={styles.toolbar}>
@@ -592,10 +665,19 @@ export default function ChatScreen() {
               <Image size={18} color={Colors.text.secondary} />
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.toolBtn}
-              onPress={() => Alert.alert('语音录入', '即将上线')}
+              style={[
+                styles.toolBtn,
+                isRecording && { backgroundColor: '#FFECEC' },
+                isTranscribing && { opacity: 0.6 },
+              ]}
+              onPress={handleMicPress}
+              disabled={isTranscribing}
             >
-              <Mic size={18} color={Colors.text.secondary} />
+              {isTranscribing ? (
+                <ActivityIndicator size="small" color={Colors.error} />
+              ) : (
+                <Mic size={18} color={isRecording ? Colors.error : Colors.text.secondary} />
+              )}
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.toolBtn}
@@ -922,6 +1004,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalSaveText: { fontSize: 15, fontWeight: '600', color: '#fff' },
+
+  // 录音状态条
+  recordingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#FFECEC',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: '#FFCDD2',
+  },
+  recordingText: { fontSize: 13, color: Colors.error, fontWeight: '500' },
 
   // Wiki 选择器
   pickerHeaderRow: {
