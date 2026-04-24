@@ -29,6 +29,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 
 import { Colors, CategoryLabels } from '../constants/colors';
 import { useChatStore } from '../store/chatStore';
@@ -392,17 +393,77 @@ export default function ChatScreen() {
     }
   }
 
-  function buildUserContent(text: string, attachments: Attachment[]): string {
-    if (attachments.length === 0) return text;
-    const attDesc = attachments
-      .map((a) => {
-        if (a.type === 'wikiRef' && a.text) {
-          return `[Wiki页面《${a.name.replace('📖 ', '')}》：\n${a.text}]`;
-        }
-        return `[附件: ${a.name}${a.text ? ` 内容: ${a.text.slice(0, 500)}` : ''}]`;
-      })
-      .join('\n\n');
-    return `${attDesc}\n\n${text}`;
+  function buildUserContent(text: string, attachments: Attachment[]): any {
+    const photoAtts = attachments.filter(
+      (a) => (a.type === 'photo' || a.type === 'image') && a.text
+    );
+    const otherAtts = attachments.filter(
+      (a) => a.type !== 'photo' && a.type !== 'image'
+    );
+
+    // Build text portion
+    let textPart = text;
+    if (otherAtts.length > 0) {
+      const attDesc = otherAtts
+        .map((a) => {
+          if (a.type === 'wikiRef' && a.text) {
+            return `[Wiki页面《${a.name.replace('📖 ', '')}》：\n${a.text}]`;
+          }
+          return `[附件: ${a.name}${a.text ? ` 内容: ${a.text.slice(0, 500)}` : ''}]`;
+        })
+        .join('\n\n');
+      textPart = `${attDesc}\n\n${text}`;
+    }
+
+    if (photoAtts.length === 0) {
+      return textPart || text;
+    }
+
+    // Multimodal: include images as base64 data URLs
+    const parts: any[] = [];
+    if (textPart.trim()) {
+      parts.push({ type: 'text', text: textPart });
+    }
+    for (const att of photoAtts) {
+      parts.push({
+        type: 'image_url',
+        image_url: { url: `data:image/jpeg;base64,${att.text}` },
+      });
+    }
+    return parts;
+  }
+
+  // ─── 拍照识别 ────────────────────────────────────────────────────────────────
+
+  async function handleTakePhoto() {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('需要摄像头权限', '请在系统设置中允许 WikiMind 使用摄像头');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.5,
+      allowsEditing: false,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const uri = result.assets[0].uri;
+    try {
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      addAttachment({
+        id: `att_${Date.now()}`,
+        type: 'photo',
+        name: '拍照',
+        uri,
+        text: base64,
+      });
+    } catch {
+      // 无法读 base64 时仅附 URI，AI 将无法分析图片内容
+      addAttachment({ id: `att_${Date.now()}`, type: 'photo', name: '拍照', uri });
+    }
   }
 
   async function handlePickDocument() {
@@ -613,7 +674,15 @@ export default function ChatScreen() {
         {pendingAttachments.length > 0 && (
           <View style={styles.attPreview}>
             {pendingAttachments.map((att) => (
-              <View key={att.id} style={styles.attChipLarge}>
+              <View
+                key={att.id}
+                style={[
+                  styles.attChipLarge,
+                  att.type === 'photo' && { borderColor: Colors.primary, borderWidth: 1 },
+                ]}
+              >
+                {att.type === 'photo' && <Camera size={13} color={Colors.primary} />}
+                {att.type === 'wikiRef' && <BookOpen size={13} color={Colors.primary} />}
                 <Text style={styles.attChipLargeText} numberOfLines={1}>{att.name}</Text>
                 <TouchableOpacity onPress={() => removeAttachment(att.id)}>
                   <X size={14} color={Colors.text.secondary} />
@@ -681,7 +750,7 @@ export default function ChatScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.toolBtn}
-              onPress={() => Alert.alert('拍照识别', '即将上线')}
+              onPress={handleTakePhoto}
             >
               <Camera size={18} color={Colors.text.secondary} />
             </TouchableOpacity>
