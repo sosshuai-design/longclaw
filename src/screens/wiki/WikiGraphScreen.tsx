@@ -25,14 +25,9 @@ const CH = SH - 180;
 
 const CAT_COLOR: Record<string, string> = {
   concept: '#4C44A8',
-  architecture: '#7B5EA7',
-  comparison: '#C5830A',
-  summary: '#1A6DB5',
+  note: '#1A6DB5',
   diary: '#C04E7A',
-  note: '#D4537E',
-  cognition: '#16A34A',
   tool: '#0A7A61',
-  personal: '#C04E7A',
 };
 
 type Edge = [number, number];
@@ -115,7 +110,7 @@ function forceLayout(n: number, edges: Edge[], w: number, h: number): Pos[] {
   return pos;
 }
 
-const LEGEND_CATS: WikiCategory[] = ['concept', 'architecture', 'summary', 'cognition', 'tool', 'note'];
+const LEGEND_CATS: WikiCategory[] = ['concept', 'note', 'diary', 'tool'];
 
 export default function WikiGraphScreen({ navigation }: Props) {
   const { pages } = useWikiStore();

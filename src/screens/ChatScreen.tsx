@@ -196,15 +196,13 @@ function SaveToWikiModal({
   onSave: (title: string, category: WikiCategory) => void;
 }) {
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState<WikiCategory>('summary');
+  const [category, setCategory] = useState<WikiCategory>('note');
 
   const categories: { key: WikiCategory; label: string }[] = [
     { key: 'concept', label: '概念' },
-    { key: 'summary', label: '摘要' },
-    { key: 'architecture', label: '架构' },
-    { key: 'comparison', label: '对比' },
-    { key: 'tool', label: '工具' },
     { key: 'note', label: '笔记' },
+    { key: 'diary', label: '日记' },
+    { key: 'tool', label: '工具' },
   ];
 
   return (

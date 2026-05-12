@@ -206,9 +206,8 @@ function WikiPageForm({ onSave }: { onSave: (d: any) => void }) {
 
   const CATS: { key: WikiCategory; label: string }[] = [
     { key: 'concept', label: '概念' },
-    { key: 'architecture', label: '架构' },
-    { key: 'comparison', label: '对比' },
-    { key: 'summary', label: '摘要' },
+    { key: 'note', label: '笔记' },
+    { key: 'diary', label: '日记' },
     { key: 'tool', label: '工具' },
   ];
 
@@ -408,7 +407,7 @@ export default function WikiNewScreen({ navigation, route }: Props) {
       } else if (type === 'cognition') {
         title = data.topic || '认知总结';
         content = `## 我的理解\n\n${data.understanding}\n\n## 来源\n\n${data.source}\n\n## 置信度\n\n${data.confidence}`;
-        category = 'cognition';
+        category = 'note';
         tags = ['认知'];
       } else if (type === 'wiki') {
         title = data.title;
@@ -418,7 +417,7 @@ export default function WikiNewScreen({ navigation, route }: Props) {
       } else if (type === 'link') {
         title = title || '链接笔记';
         content = `> 来源：${data.url}\n\n${data.content}`;
-        category = 'summary';
+        category = 'note';
         tags = ['链接', '导入'];
       }
 

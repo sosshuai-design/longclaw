@@ -54,9 +54,7 @@ export async function initWikiFileSystem(): Promise<void> {
     getWikiDir(),
     getPagesDir(),
     `${getPagesDir()}concepts/`,
-    `${getPagesDir()}architecture/`,
-    `${getPagesDir()}comparisons/`,
-    `${getPagesDir()}summaries/`,
+    `${getPagesDir()}notes/`,
     `${getPagesDir()}personal/`,
     `${getPagesDir()}tools/`,
   ];
@@ -114,16 +112,11 @@ function slugify(title: string): string {
 function categoryToFolder(category: WikiCategory): string {
   const map: Record<WikiCategory, string> = {
     concept: 'concepts',
-    architecture: 'architecture',
-    comparison: 'comparisons',
-    summary: 'summaries',
+    note: 'notes',
     diary: 'personal',
-    note: 'personal',
-    cognition: 'personal',
     tool: 'tools',
-    personal: 'personal',
   };
-  return map[category] ?? 'personal';
+  return map[category] ?? 'notes';
 }
 
 // ─── Front Matter 解析 / 序列化 ──────────────────────────────────────────────
@@ -331,11 +324,47 @@ export async function deleteRawFiles(sourceFiles: string[]): Promise<void> {
   }
 }
 
+// ─── V2 分类迁移（9→4）────────────────────────────────────────────────────────
+
+const CATEGORY_MIGRATION_V2: Record<string, WikiCategory> = {
+  architecture: 'concept',
+  comparison: 'concept',
+  summary: 'note',
+  cognition: 'note',
+  personal: 'diary',
+};
+
+export async function migrateCategoryV2(): Promise<void> {
+  const legacyFolders = ['concepts', 'architecture', 'comparisons', 'summaries', 'personal', 'tools'];
+  for (const folder of legacyFolders) {
+    const dirPath = `${getPagesDir()}${folder}/`;
+    const info = await FileSystem.getInfoAsync(dirPath);
+    if (!info.exists) continue;
+    const files = await FileSystem.readDirectoryAsync(dirPath);
+    for (const file of files) {
+      if (!file.endsWith('.md')) continue;
+      const filePath = `wiki/pages/${folder}/${file}`;
+      const absolutePath = `${getWikiRootDir()}${filePath}`;
+      try {
+        const raw = await FileSystem.readAsStringAsync(absolutePath);
+        const { meta, body } = parseFrontMatter(raw);
+        const newCategory = CATEGORY_MIGRATION_V2[meta.category as string];
+        if (newCategory) {
+          const newMeta: WikiFrontMatter = { ...meta, category: newCategory };
+          await FileSystem.writeAsStringAsync(absolutePath, serializeFrontMatter(newMeta, body));
+        }
+      } catch {
+        // 单文件失败不中断整体迁移
+      }
+    }
+  }
+}
+
 // ─── 列出所有 Wiki 页面 ──────────────────────────────────────────────────────
 
 export async function listAllWikiPages(): Promise<WikiPage[]> {
   const pages: WikiPage[] = [];
-  const folders = ['concepts', 'architecture', 'comparisons', 'summaries', 'personal', 'tools'];
+  const folders = ['concepts', 'notes', 'personal', 'tools', 'architecture', 'comparisons', 'summaries'];
 
   for (const folder of folders) {
     const dirPath = `${getPagesDir()}${folder}/`;

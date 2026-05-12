@@ -25,12 +25,8 @@ type Props = {
 
 const CATEGORIES: { key: WikiCategory; label: string }[] = [
   { key: 'concept', label: '概念' },
-  { key: 'architecture', label: '架构' },
-  { key: 'comparison', label: '对比' },
-  { key: 'summary', label: '摘要' },
-  { key: 'diary', label: '日记' },
   { key: 'note', label: '笔记' },
-  { key: 'cognition', label: '认知' },
+  { key: 'diary', label: '日记' },
   { key: 'tool', label: '工具' },
 ];
 

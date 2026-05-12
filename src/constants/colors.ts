@@ -17,14 +17,9 @@ export const Colors = {
   // 分类颜色
   category: {
     concept: { bg: '#EEEDFE', text: '#3C3489' },
-    architecture: { bg: '#EEEDFE', text: '#3C3489' },
-    comparison: { bg: '#FAEEDA', text: '#633806' },
-    summary: { bg: '#E6F1FB', text: '#0C447C' },
+    note: { bg: '#E6F1FB', text: '#0C447C' },
     diary: { bg: '#FBEAF0', text: '#72243E' },
-    note: { bg: '#FBEAF0', text: '#72243E' },
-    cognition: { bg: '#FBEAF0', text: '#72243E' },
     tool: { bg: '#E1F5EE', text: '#085041' },
-    personal: { bg: '#FBEAF0', text: '#72243E' },
   },
 
   // Lint 状态色
@@ -73,14 +68,9 @@ export const Colors = {
 
 export const CategoryLabels: Record<string, string> = {
   concept: '概念',
-  architecture: '架构',
-  comparison: '对比',
-  summary: '摘要',
-  diary: '日记',
   note: '笔记',
-  cognition: '认知',
+  diary: '日记',
   tool: '工具',
-  personal: '个人',
 };
 
 export const CategoryKeys = Object.keys(CategoryLabels);

@@ -7,16 +7,7 @@ export interface User {
 }
 
 // ─── Wiki 页面 ──────────────────────────────────────────────────────────────
-export type WikiCategory =
-  | 'concept'
-  | 'architecture'
-  | 'comparison'
-  | 'summary'
-  | 'diary'
-  | 'note'
-  | 'cognition'
-  | 'tool'
-  | 'personal';
+export type WikiCategory = 'concept' | 'note' | 'diary' | 'tool';
 
 export type WikiSource = 'ingest' | 'query' | 'manual';
 

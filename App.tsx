@@ -9,7 +9,7 @@ import { Home, MessageSquare, BookOpen, Settings } from 'lucide-react-native';
 import { useAuthStore } from './src/store/authStore';
 import { useSettingsStore } from './src/store/settingsStore';
 import { useWikiStore } from './src/store/wikiStore';
-import { initWikiFileSystem } from './src/services/wiki';
+import { initWikiFileSystem, migrateCategoryV2 } from './src/services/wiki';
 import { Colors } from './src/constants/colors';
 
 // ─── 认证流程 ─────────────────────────────────────────────────────────────────
@@ -164,6 +164,7 @@ export default function App() {
     async function init() {
       await Promise.all([loadStoredAuth(), loadSettings()]);
       await initWikiFileSystem();
+      await migrateCategoryV2();
       await loadPages();
     }
     init().catch(console.error);
