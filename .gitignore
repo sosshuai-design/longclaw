@@ -22,3 +22,10 @@ web-build/
 .env
 .env.local
 expo-env.d.ts
+
+# Android generated bundle & assets (built at compile time, not committed)
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/assets/index.android.bundle.map
+android/app/src/main/res/drawable-*
+# Expo export raw asset copies (hex-named)
+android/app/src/main/res/[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]*
