@@ -24,7 +24,7 @@ export const PROVIDERS: Record<LLMProviderKey, Omit<LLMProvider, 'key'>> = {
   doubao: {
     name: '豆包',
     baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
-    model: 'doubao-pro-32k',
+    model: 'Doubao-1.5-vision-pro-32k',
   },
   glm: {
     name: '智谱 GLM',
