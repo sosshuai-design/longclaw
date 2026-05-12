@@ -117,9 +117,6 @@ export default function WikiEditScreen({ navigation, route }: Props) {
         ).slice(0, 8)
       : [];
 
-  const otherPages = pages.filter(
-    (p) => p.filePath !== pageId && p.id !== pageId
-  );
   const filteredPages = pickerSearch
     ? otherPages.filter((p) =>
         p.title.toLowerCase().includes(pickerSearch.toLowerCase())
