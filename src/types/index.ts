@@ -43,6 +43,7 @@ export interface WikiFrontMatter {
   source: WikiSource;
   source_files?: string[];
   references: number;
+  schema_version: number;
 }
 
 // ─── 操作日志 ────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -41,8 +41,30 @@ export default function WikiListScreen() {
   const [searchText, setSearchText] = useState('');
   const [searchVisible, setSearchVisible] = useState(false);
   const [fabOpen, setFabOpen] = useState(false);
+  const [showOrphansOnly, setShowOrphansOnly] = useState(false);
 
   const fabAnim = useState(new Animated.Value(0))[0];
+
+  // 孤岛页面：无出链到已有页面，也不被任何页面引用
+  const orphanIds = useMemo(() => {
+    const titleSet = new Set(pages.map((p) => p.title));
+    const referencedTitles = new Set<string>();
+    for (const p of pages) {
+      for (const m of p.content.matchAll(/\[\[([^\]]+)\]\]/g)) {
+        referencedTitles.add(m[1]);
+      }
+    }
+    return new Set(
+      pages
+        .filter((p) => {
+          const hasOutLink = [...p.content.matchAll(/\[\[([^\]]+)\]\]/g)].some((m) =>
+            titleSet.has(m[1])
+          );
+          return !hasOutLink && !referencedTitles.has(p.title);
+        })
+        .map((p) => p.id)
+    );
+  }, [pages]);
 
   function toggleFab() {
     const toValue = fabOpen ? 0 : 1;
@@ -51,6 +73,7 @@ export default function WikiListScreen() {
   }
 
   const filteredPages = pages.filter((p) => {
+    if (showOrphansOnly) return orphanIds.has(p.id);
     const matchCat = selectedCategory === 'all' || p.category === selectedCategory;
     const matchSearch =
       !searchText ||
@@ -124,14 +147,22 @@ export default function WikiListScreen() {
         {CATEGORIES.map((c) => (
           <TouchableOpacity
             key={c.key}
-            style={[styles.catChip, selectedCategory === c.key && styles.catChipActive]}
-            onPress={() => setSelectedCategory(c.key)}
+            style={[styles.catChip, !showOrphansOnly && selectedCategory === c.key && styles.catChipActive]}
+            onPress={() => { setShowOrphansOnly(false); setSelectedCategory(c.key); }}
           >
-            <Text style={[styles.catChipText, selectedCategory === c.key && styles.catChipTextActive]}>
+            <Text style={[styles.catChipText, !showOrphansOnly && selectedCategory === c.key && styles.catChipTextActive]}>
               {c.label}
             </Text>
           </TouchableOpacity>
         ))}
+        <TouchableOpacity
+          style={[styles.catChip, styles.orphanChip, showOrphansOnly && styles.orphanChipActive]}
+          onPress={() => setShowOrphansOnly((v) => !v)}
+        >
+          <Text style={[styles.catChipText, showOrphansOnly && styles.orphanChipTextActive]}>
+            孤岛 {orphanIds.size > 0 ? `(${orphanIds.size})` : ''}
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* 页面列表 */}
@@ -185,8 +216,12 @@ export default function WikiListScreen() {
 
         {filteredPages.length === 0 && (
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>暂无 Wiki 页面</Text>
-            <Text style={styles.emptyHint}>点击右下角 + 按钮新建</Text>
+            <Text style={styles.emptyText}>
+              {showOrphansOnly ? '没有孤岛页面' : '暂无 Wiki 页面'}
+            </Text>
+            <Text style={styles.emptyHint}>
+              {showOrphansOnly ? '所有页面都已建立链接关系' : '点击右下角 + 按钮新建'}
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -283,6 +318,9 @@ const styles = StyleSheet.create({
   catChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   catChipText: { fontSize: 13, color: Colors.text.secondary },
   catChipTextActive: { color: '#fff', fontWeight: '600' },
+  orphanChip: { borderColor: '#C04E7A' },
+  orphanChipActive: { backgroundColor: '#C04E7A', borderColor: '#C04E7A' },
+  orphanChipTextActive: { color: '#fff', fontWeight: '600' },
 
   list: { flex: 1 },
   listContent: { paddingHorizontal: 18, paddingBottom: 100 },

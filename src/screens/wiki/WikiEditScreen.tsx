@@ -36,7 +36,7 @@ const CATEGORIES: { key: WikiCategory; label: string }[] = [
 
 export default function WikiEditScreen({ navigation, route }: Props) {
   const { pageId } = route.params;
-  const { pages, editPage } = useWikiStore();
+  const { pages, editPage, addPage } = useWikiStore();
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<WikiCategory>('note');
@@ -109,6 +109,15 @@ export default function WikiEditScreen({ navigation, route }: Props) {
     setLinkQuery(null);
   }
 
+  async function createStubAndInsert(stubTitle: string) {
+    try {
+      await addPage({ title: stubTitle, category: 'note', tags: [], source: 'manual', content: '' });
+      insertSuggestion(stubTitle);
+    } catch (e: any) {
+      Alert.alert('创建失败', e.message);
+    }
+  }
+
   const otherPages = pages.filter((p) => p.filePath !== pageId && p.id !== pageId);
   const suggestions =
     linkQuery !== null
@@ -116,6 +125,11 @@ export default function WikiEditScreen({ navigation, route }: Props) {
           linkQuery === '' || p.title.toLowerCase().includes(linkQuery.toLowerCase())
         ).slice(0, 8)
       : [];
+
+  const showStubCreate =
+    linkQuery !== null &&
+    linkQuery.trim().length > 0 &&
+    !pages.some((p) => p.title === linkQuery.trim());
 
   const filteredPages = pickerSearch
     ? otherPages.filter((p) =>
@@ -208,7 +222,7 @@ export default function WikiEditScreen({ navigation, route }: Props) {
           </TouchableOpacity>
         </View>
         {/* [[链接]] 自动提示条 */}
-        {suggestions.length > 0 && (
+        {(suggestions.length > 0 || showStubCreate) && (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -225,6 +239,14 @@ export default function WikiEditScreen({ navigation, route }: Props) {
                 <Text style={styles.suggestChipText}>{p.title}</Text>
               </TouchableOpacity>
             ))}
+            {showStubCreate && (
+              <TouchableOpacity
+                style={styles.stubChip}
+                onPress={() => createStubAndInsert(linkQuery!.trim())}
+              >
+                <Text style={styles.stubChipText}>+ 新建《{linkQuery!.trim()}》</Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
         )}
 
@@ -477,4 +499,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   suggestChipText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  stubChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    borderStyle: 'dashed',
+  },
+  stubChipText: { fontSize: 13, fontWeight: '600', color: Colors.primary },
 });

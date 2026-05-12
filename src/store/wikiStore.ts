@@ -5,6 +5,7 @@ import {
   createWikiPage,
   updateWikiPage,
   deleteWikiPage,
+  deleteRawFiles,
   computeStats,
   rebuildIndex,
   appendLog,
@@ -73,7 +74,11 @@ export const useWikiStore = create<WikiState>((set, get) => ({
   },
 
   removePage: async (filePath) => {
+    const page = get().pages.find((p) => p.filePath === filePath);
     await deleteWikiPage(filePath);
+    if (page?.sourceFiles?.length) {
+      await deleteRawFiles(page.sourceFiles);
+    }
     const pages = get().pages.filter((p) => p.filePath !== filePath);
     set({ pages });
     await rebuildIndex(pages);

@@ -175,6 +175,8 @@ export function parseFrontMatter(raw: string): { meta: WikiFrontMatter; body: st
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean);
+    } else if (key === 'schema_version') {
+      meta.schema_version = parseInt(val, 10) || 1;
     }
   }
 
@@ -188,6 +190,7 @@ export function parseFrontMatter(raw: string): { meta: WikiFrontMatter; body: st
       source: meta.source ?? 'manual',
       source_files: meta.source_files,
       references: meta.references ?? 0,
+      schema_version: meta.schema_version ?? 1,
     },
     body,
   };
@@ -207,6 +210,7 @@ created: ${meta.created}
 updated: ${meta.updated}
 source: ${meta.source}${sourceFilesLine}
 references: ${meta.references}
+schema_version: ${meta.schema_version ?? 1}
 ---
 ${body}`;
 }
@@ -318,6 +322,13 @@ export async function updateWikiPage(
 export async function deleteWikiPage(filePath: string): Promise<void> {
   const absolutePath = `${getWikiRootDir()}${filePath}`;
   await FileSystem.deleteAsync(absolutePath, { idempotent: true });
+}
+
+export async function deleteRawFiles(sourceFiles: string[]): Promise<void> {
+  for (const rel of sourceFiles) {
+    const abs = `${getWikiRootDir()}${rel}`;
+    await FileSystem.deleteAsync(abs, { idempotent: true });
+  }
 }
 
 // ─── 列出所有 Wiki 页面 ──────────────────────────────────────────────────────
