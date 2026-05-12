@@ -114,44 +114,73 @@ interface LLMResponse {
   usage?: { prompt_tokens: number; completion_tokens: number };
 }
 
-// ─── Claude 专用：Anthropic Messages API ──────────────────────────────────────
+// ─── XHR 流式（React Native 的 fetch 不支持 ReadableStream）──────────────────
 
-async function callClaudeAPI(
-  apiKey: string,
-  model: string,
-  messages: LLMRequestMessage[],
-  stream: false,
-  options?: { temperature?: number; maxTokens?: number }
-): Promise<LLMResponse>;
-async function callClaudeAPI(
-  apiKey: string,
-  model: string,
-  messages: LLMRequestMessage[],
-  stream: true,
-  options: { temperature?: number; maxTokens?: number } | undefined,
+function xhrStream(
+  url: string,
+  headers: Record<string, string>,
+  body: string,
+  parseDataLine: (json: string) => string | null,
   onChunk: (chunk: string) => void,
   onDone: (full: string) => void
-): Promise<void>;
-async function callClaudeAPI(
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url);
+    Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+    xhr.timeout = 120000;
+
+    let offset = 0;
+    let lineBuffer = '';
+    let fullContent = '';
+
+    xhr.onprogress = () => {
+      lineBuffer += xhr.responseText.slice(offset);
+      offset = xhr.responseText.length;
+
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop() ?? '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6).trim();
+        if (!json || json === '[DONE]') continue;
+        try {
+          const delta = parseDataLine(json);
+          if (delta) {
+            fullContent += delta;
+            onChunk(delta);
+          }
+        } catch { /* 忽略解析错误 */ }
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 400) {
+        reject(new Error(`LLM 请求失败 (${xhr.status}): ${xhr.responseText.slice(0, 300)}`));
+        return;
+      }
+      onDone(fullContent);
+      resolve();
+    };
+
+    xhr.onerror = () => reject(new Error('网络请求失败，请检查网络连接'));
+    xhr.ontimeout = () => reject(new Error('请求超时（120s），请重试'));
+
+    xhr.send(body);
+  });
+}
+
+// ─── Claude 专用：Anthropic Messages API（非流式用 fetch，流式用 XHR）─────────
+
+async function callClaudeNonStream(
   apiKey: string,
   model: string,
   messages: LLMRequestMessage[],
-  stream: boolean,
-  options?: { temperature?: number; maxTokens?: number },
-  onChunk?: (chunk: string) => void,
-  onDone?: (full: string) => void
-): Promise<LLMResponse | void> {
+  options?: { temperature?: number; maxTokens?: number }
+): Promise<LLMResponse> {
   const systemMsg = messages.find((m) => m.role === 'system');
   const chatMsgs = messages.filter((m) => m.role !== 'system');
-
-  const body = JSON.stringify({
-    model,
-    max_tokens: options?.maxTokens ?? 4096,
-    temperature: options?.temperature ?? 0.7,
-    stream,
-    ...(systemMsg ? { system: systemMsg.content as string } : {}),
-    messages: chatMsgs,
-  });
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -160,7 +189,14 @@ async function callClaudeAPI(
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
     },
-    body,
+    body: JSON.stringify({
+      model,
+      max_tokens: options?.maxTokens ?? 4096,
+      temperature: options?.temperature ?? 0.7,
+      stream: false,
+      ...(systemMsg ? { system: systemMsg.content as string } : {}),
+      messages: chatMsgs,
+    }),
   });
 
   if (!response.ok) {
@@ -168,43 +204,50 @@ async function callClaudeAPI(
     throw new Error(`Claude 请求失败 (${response.status}): ${err}`);
   }
 
-  if (!stream) {
-    const data = await response.json();
-    return {
-      content: data.content?.[0]?.text ?? '',
-      usage: data.usage
-        ? { prompt_tokens: data.usage.input_tokens, completion_tokens: data.usage.output_tokens }
-        : undefined,
-    };
-  }
+  const data = await response.json();
+  return {
+    content: data.content?.[0]?.text ?? '',
+    usage: data.usage
+      ? { prompt_tokens: data.usage.input_tokens, completion_tokens: data.usage.output_tokens }
+      : undefined,
+  };
+}
 
-  // streaming
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error('无法读取响应流');
-  const decoder = new TextDecoder();
-  let fullContent = '';
+function callClaudeStream(
+  apiKey: string,
+  model: string,
+  messages: LLMRequestMessage[],
+  onChunk: (chunk: string) => void,
+  onDone: (full: string) => void,
+  options?: { temperature?: number; maxTokens?: number }
+): Promise<void> {
+  const systemMsg = messages.find((m) => m.role === 'system');
+  const chatMsgs = messages.filter((m) => m.role !== 'system');
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split('\n')) {
-      if (!line.startsWith('data: ')) continue;
-      const json = line.slice(6).trim();
-      if (!json || json === '[DONE]') continue;
-      try {
-        const parsed = JSON.parse(json);
-        if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-          const text = parsed.delta.text ?? '';
-          if (text) {
-            fullContent += text;
-            onChunk!(text);
-          }
-        }
-      } catch { /* ignore */ }
-    }
-  }
-  onDone!(fullContent);
+  return xhrStream(
+    'https://api.anthropic.com/v1/messages',
+    {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    JSON.stringify({
+      model,
+      max_tokens: options?.maxTokens ?? 4096,
+      temperature: options?.temperature ?? 0.7,
+      stream: true,
+      ...(systemMsg ? { system: systemMsg.content as string } : {}),
+      messages: chatMsgs,
+    }),
+    (json) => {
+      const p = JSON.parse(json);
+      return p.type === 'content_block_delta' && p.delta?.type === 'text_delta'
+        ? p.delta.text ?? null
+        : null;
+    },
+    onChunk,
+    onDone
+  );
 }
 
 export async function callLLM(
@@ -224,7 +267,7 @@ export async function callLLM(
     const apiKey = await getApiKey(providerKey);
     if (!apiKey) throw new Error(`未设置 ${provider.name} 的 API Key`);
     if (providerKey === 'claude') {
-      return callClaudeAPI(apiKey, provider.model, messages, false, options);
+      return callClaudeNonStream(apiKey, provider.model, messages, options);
     }
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
@@ -271,7 +314,7 @@ export async function callLLMStream(
     const apiKey = await getApiKey(providerKey);
     if (!apiKey) throw new Error(`未设置 ${provider.name} 的 API Key`);
     if (providerKey === 'claude') {
-      return callClaudeAPI(apiKey, provider.model, messages, true, options, onChunk, onDone);
+      return callClaudeStream(apiKey, provider.model, messages, onChunk, onDone, options);
     }
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
@@ -285,36 +328,17 @@ export async function callLLMStream(
     stream: true,
   });
 
-  const response = await fetch(url, { method: 'POST', headers, body });
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`LLM 请求失败 (${response.status}): ${errorText}`);
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error('无法读取响应流');
-  const decoder = new TextDecoder();
-  let fullContent = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    for (const line of chunk.split('\n')) {
-      if (!line.startsWith('data: ')) continue;
-      const json = line.slice(6).trim();
-      if (json === '[DONE]') continue;
-      try {
-        const parsed = JSON.parse(json);
-        const delta = parsed.choices?.[0]?.delta?.content ?? '';
-        if (delta) {
-          fullContent += delta;
-          onChunk(delta);
-        }
-      } catch { /* 忽略解析错误 */ }
-    }
-  }
-  onDone(fullContent);
+  return xhrStream(
+    url,
+    headers,
+    body,
+    (json) => {
+      const parsed = JSON.parse(json);
+      return parsed.choices?.[0]?.delta?.content ?? null;
+    },
+    onChunk,
+    onDone
+  );
 }
 
 // ─── Ingest System Prompt ─────────────────────────────────────────────────────
