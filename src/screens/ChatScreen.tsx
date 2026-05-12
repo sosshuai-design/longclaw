@@ -21,6 +21,8 @@ import {
   Mic,
   Camera,
   BookOpen,
+  Inbox,
+  Pin,
   Send,
   X,
   ChevronDown,
@@ -56,10 +58,12 @@ function MessageBubble({
   msg,
   onSaveToWiki,
   onWikiRefPress,
+  isPinning,
 }: {
   msg: ChatMessage;
   onSaveToWiki?: (msg: ChatMessage) => void;
   onWikiRefPress?: (pageId: string, title: string) => void;
+  isPinning?: boolean;
 }) {
   const isUser = msg.role === 'user';
 
@@ -95,14 +99,22 @@ function MessageBubble({
           </View>
         )}
 
-        {/* 存入 Wiki 横幅 */}
+        {/* 📌 存入 Wiki 按钮 */}
         {msg.canSaveToWiki && onSaveToWiki && (
-          <TouchableOpacity
-            style={styles.saveToWikiBanner}
-            onPress={() => onSaveToWiki(msg)}
-          >
-            <Text style={styles.saveToWikiText}>把这个回答存入 Wiki</Text>
-          </TouchableOpacity>
+          <View style={styles.pinRow}>
+            <TouchableOpacity
+              style={styles.pinBtn}
+              onPress={() => onSaveToWiki(msg)}
+              disabled={isPinning}
+              activeOpacity={0.7}
+            >
+              {isPinning ? (
+                <ActivityIndicator size="small" color={Colors.text.tertiary} />
+              ) : (
+                <Pin size={14} color={Colors.text.secondary} />
+              )}
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </View>
@@ -284,6 +296,7 @@ export default function ChatScreen() {
   const [wikiPickerVisible, setWikiPickerVisible] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [pinningMsgId, setPinningMsgId] = useState<string | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
@@ -491,9 +504,44 @@ export default function ChatScreen() {
     }
   }
 
-  function handleSaveToWiki(msg: ChatMessage) {
-    setPendingSaveMsg(msg);
-    setSaveModalVisible(true);
+  async function handlePinToWiki(msg: ChatMessage) {
+    if (pinningMsgId) return;
+    setPinningMsgId(msg.id);
+    try {
+      const [schema, index] = await Promise.all([readSchema(), readIndex()]);
+      const systemPrompt = buildIngestSystemPrompt(schema, index);
+      const msgList = [
+        { role: 'system' as const, content: systemPrompt },
+        { role: 'user' as const, content: `请将以下内容整理存入 Wiki：\n\n${msg.content}` },
+      ];
+      let fullContent = '';
+      await callLLMStream(
+        activeProvider,
+        msgList,
+        () => {},
+        async (full) => { fullContent = full; }
+      );
+      const wikiActions = parseWikiActions(fullContent);
+      if (wikiActions.length > 0) {
+        for (const action of wikiActions) {
+          await addPage({
+            title: action.title,
+            category: (action.category as WikiCategory) || 'summary',
+            tags: action.tags ?? [],
+            source: 'ingest',
+            content: action.content,
+          });
+        }
+        Alert.alert('已存入 Wiki', `整理并存入了 ${wikiActions.length} 个页面`);
+      } else {
+        setPendingSaveMsg(msg);
+        setSaveModalVisible(true);
+      }
+    } catch (e: any) {
+      Alert.alert('存入失败', e.message);
+    } finally {
+      setPinningMsgId(null);
+    }
   }
 
   async function handleConfirmSave(title: string, category: WikiCategory) {
@@ -612,20 +660,6 @@ export default function ChatScreen() {
               {modeLabel} · {providerName}
             </Text>
           </View>
-          {/* 模式切换 */}
-          <View style={styles.modeSwitch}>
-            {(['ingest', 'query'] as const).map((m) => (
-              <TouchableOpacity
-                key={m}
-                style={[styles.modeSwitchBtn, mode === m && styles.modeSwitchBtnActive]}
-                onPress={() => setMode(m)}
-              >
-                <Text style={[styles.modeSwitchText, mode === m && styles.modeSwitchTextActive]}>
-                  {m === 'ingest' ? 'Ingest' : 'Query'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
         </View>
 
         {/* Wiki 页面引用条 */}
@@ -653,8 +687,9 @@ export default function ChatScreen() {
           renderItem={({ item }) => (
             <MessageBubble
               msg={item}
-              onSaveToWiki={handleSaveToWiki}
+              onSaveToWiki={handlePinToWiki}
               onWikiRefPress={handleWikiRefPress}
+              isPinning={pinningMsgId === item.id}
             />
           )}
           contentContainerStyle={styles.msgList}
@@ -763,6 +798,15 @@ export default function ChatScreen() {
           </View>
 
           <View style={styles.inputRow}>
+            <TouchableOpacity
+              style={styles.modeIconBtn}
+              onPress={() => setMode(mode === 'ingest' ? 'query' : 'ingest')}
+            >
+              {mode === 'ingest'
+                ? <Inbox size={20} color={Colors.primary} />
+                : <BookOpen size={20} color={Colors.text.secondary} />
+              }
+            </TouchableOpacity>
             <TextInput
               style={styles.input}
               value={inputText}
@@ -820,16 +864,16 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '700', color: Colors.text.primary },
   headerSub: { fontSize: 12, color: Colors.text.secondary, marginTop: 2 },
 
-  modeSwitch: {
-    flexDirection: 'row',
-    backgroundColor: Colors.surface,
+  modeIconBtn: {
+    width: 36,
+    height: 36,
     borderRadius: 10,
-    padding: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderWidth: 0.5,
+    borderColor: Colors.border,
   },
-  modeSwitchBtn: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 8 },
-  modeSwitchBtnActive: { backgroundColor: Colors.primary },
-  modeSwitchText: { fontSize: 13, fontWeight: '600', color: Colors.text.secondary },
-  modeSwitchTextActive: { color: '#fff' },
 
   pageRefBanner: {
     flexDirection: 'row',
@@ -909,14 +953,16 @@ const styles = StyleSheet.create({
   },
   wikiRefText: { fontSize: 12, color: Colors.primaryDark },
 
-  saveToWikiBanner: {
-    marginTop: 10,
-    backgroundColor: Colors.ai,
-    borderRadius: 8,
-    paddingVertical: 8,
-    alignItems: 'center',
+  pinRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 6,
   },
-  saveToWikiText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  pinBtn: {
+    padding: 5,
+    borderRadius: 6,
+    backgroundColor: Colors.background,
+  },
 
   emptyChat: {
     flex: 1,
