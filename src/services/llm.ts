@@ -66,6 +66,7 @@ export const PROVIDER_KEYS_ORDERED: LLMProviderKey[] = [
 
 // SecureStore 键名
 const SECURE_KEY_PREFIX = 'wikimind_apikey_';
+const SECURE_MODEL_PREFIX = 'wikimind_model_';
 export const OLLAMA_URL_KEY = 'wikimind_ollama_url';
 
 export async function saveOllamaUrl(url: string): Promise<void> {
@@ -94,6 +95,19 @@ export async function deleteApiKey(provider: LLMProviderKey): Promise<void> {
 export async function hasApiKey(provider: LLMProviderKey): Promise<boolean> {
   const key = await getApiKey(provider);
   return !!key && key.trim().length > 0;
+}
+
+export async function saveProviderModel(provider: LLMProviderKey, model: string): Promise<void> {
+  if (model.trim()) {
+    await SecureStore.setItemAsync(`${SECURE_MODEL_PREFIX}${provider}`, model.trim());
+  } else {
+    await SecureStore.deleteItemAsync(`${SECURE_MODEL_PREFIX}${provider}`);
+  }
+}
+
+export async function getProviderModel(provider: LLMProviderKey): Promise<string> {
+  const custom = await SecureStore.getItemAsync(`${SECURE_MODEL_PREFIX}${provider}`);
+  return custom?.trim() || PROVIDERS[provider].model;
 }
 
 // ─── LLM 请求 ─────────────────────────────────────────────────────────────────
@@ -258,6 +272,7 @@ export async function callLLM(
   const provider = PROVIDERS[providerKey];
   let baseURL = provider.baseURL;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const model = await getProviderModel(providerKey);
 
   if (providerKey === 'ollama') {
     const customHost = await getOllamaUrl();
@@ -267,14 +282,14 @@ export async function callLLM(
     const apiKey = await getApiKey(providerKey);
     if (!apiKey) throw new Error(`未设置 ${provider.name} 的 API Key`);
     if (providerKey === 'claude') {
-      return callClaudeNonStream(apiKey, provider.model, messages, options);
+      return callClaudeNonStream(apiKey, model, messages, options);
     }
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
 
   const url = `${baseURL}/chat/completions`;
   const body = JSON.stringify({
-    model: provider.model,
+    model,
     messages,
     temperature: options?.temperature ?? 0.7,
     max_tokens: options?.maxTokens ?? 4096,
@@ -305,6 +320,7 @@ export async function callLLMStream(
   const provider = PROVIDERS[providerKey];
   let baseURL = provider.baseURL;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  const model = await getProviderModel(providerKey);
 
   if (providerKey === 'ollama') {
     const customHost = await getOllamaUrl();
@@ -314,14 +330,14 @@ export async function callLLMStream(
     const apiKey = await getApiKey(providerKey);
     if (!apiKey) throw new Error(`未设置 ${provider.name} 的 API Key`);
     if (providerKey === 'claude') {
-      return callClaudeStream(apiKey, provider.model, messages, onChunk, onDone, options);
+      return callClaudeStream(apiKey, model, messages, onChunk, onDone, options);
     }
     headers['Authorization'] = `Bearer ${apiKey}`;
   }
 
   const url = `${baseURL}/chat/completions`;
   const body = JSON.stringify({
-    model: provider.model,
+    model,
     messages,
     temperature: options?.temperature ?? 0.7,
     max_tokens: options?.maxTokens ?? 4096,

@@ -34,6 +34,8 @@ import {
   hasApiKey,
   saveOllamaUrl,
   getOllamaUrl,
+  saveProviderModel,
+  getProviderModel,
 } from '../services/llm';
 import { exportWikiAsJSON } from '../services/wiki';
 import * as FileSystem from 'expo-file-system';
@@ -52,6 +54,7 @@ function ApiKeyModal({
   onClose: () => void;
 }) {
   const [apiKey, setApiKey] = useState('');
+  const [modelId, setModelId] = useState('');
   const [loading, setLoading] = useState(false);
   const [hasKey, setHasKey] = useState(false);
   const provider = PROVIDERS[providerKey];
@@ -59,17 +62,21 @@ function ApiKeyModal({
   React.useEffect(() => {
     if (visible) {
       hasApiKey(providerKey).then(setHasKey);
+      getProviderModel(providerKey).then((m) =>
+        setModelId(m === provider.model ? '' : m)
+      );
       setApiKey('');
     }
   }, [visible, providerKey]);
 
   async function handleSave() {
-    if (!apiKey.trim()) return;
+    if (!apiKey.trim() && !modelId.trim()) return;
     setLoading(true);
     try {
-      await saveApiKey(providerKey, apiKey.trim());
+      if (apiKey.trim()) await saveApiKey(providerKey, apiKey.trim());
+      await saveProviderModel(providerKey, modelId.trim());
       setHasKey(true);
-      Alert.alert('保存成功', `${provider.name} API Key 已安全保存`);
+      Alert.alert('保存成功', `${provider.name} 配置已安全保存`);
       onClose();
     } catch {
       Alert.alert('保存失败', '请重试');
@@ -78,12 +85,14 @@ function ApiKeyModal({
     }
   }
 
+  const canSave = apiKey.trim().length > 0 || modelId.trim().length > 0;
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>{provider.name} API Key</Text>
+          <Text style={styles.modalTitle}>{provider.name} 配置</Text>
           {hasKey && (
             <View style={styles.hasKeyBadge}>
               <Check size={14} color={Colors.success} />
@@ -94,8 +103,8 @@ function ApiKeyModal({
           <Text style={styles.modalHint}>
             API Key 将使用系统 Keychain 安全存储，不会上传至任何服务器。
           </Text>
-          <Text style={styles.modalModel}>模型：{provider.model}</Text>
 
+          <Text style={styles.modalLabel}>API Key</Text>
           <TextInput
             style={styles.keyInput}
             value={apiKey}
@@ -107,14 +116,25 @@ function ApiKeyModal({
             autoCorrect={false}
           />
 
+          <Text style={styles.modalLabel}>模型 ID（留空使用默认：{provider.model}）</Text>
+          <TextInput
+            style={styles.keyInput}
+            value={modelId}
+            onChangeText={setModelId}
+            placeholder={provider.model}
+            placeholderTextColor={Colors.text.tertiary}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+
           <View style={styles.modalActions}>
             <TouchableOpacity style={styles.modalCancelBtn} onPress={onClose}>
               <Text style={styles.modalCancelText}>取消</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modalSaveBtn, !apiKey.trim() && { opacity: 0.5 }]}
+              style={[styles.modalSaveBtn, !canSave && { opacity: 0.5 }]}
               onPress={handleSave}
-              disabled={!apiKey.trim() || loading}
+              disabled={!canSave || loading}
             >
               {loading ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -204,7 +224,14 @@ export default function SettingsScreen() {
   const { activeProvider, setActiveProvider, autoLintEnabled, setAutoLint, iCloudSyncEnabled, setICloudSync } = useSettingsStore();
   const [apiKeyModal, setApiKeyModal] = useState<LLMProviderKey | null>(null);
   const [ollamaModalVisible, setOllamaModalVisible] = useState(false);
+  const [effectiveModels, setEffectiveModels] = useState<Partial<Record<LLMProviderKey, string>>>({});
   const rootNav = useNavigation<any>();
+
+  React.useEffect(() => {
+    Promise.all(
+      PROVIDER_KEYS_ORDERED.map(async (k) => [k, await getProviderModel(k)] as const)
+    ).then((entries) => setEffectiveModels(Object.fromEntries(entries)));
+  }, [apiKeyModal]);
 
   async function handleLogout() {
     Alert.alert('退出登录', '确定要退出吗？本地 Wiki 数据不会被删除。', [
@@ -286,7 +313,7 @@ export default function SettingsScreen() {
                   </View>
                   <View>
                     <Text style={styles.providerName}>{provider.name}</Text>
-                    <Text style={styles.providerModel}>{provider.model}</Text>
+                    <Text style={styles.providerModel}>{effectiveModels[key] ?? provider.model}</Text>
                   </View>
                 </TouchableOpacity>
                 {key === 'ollama' ? (
@@ -595,8 +622,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   hasKeyText: { fontSize: 13, color: Colors.success, fontWeight: '600' },
-  modalHint: { fontSize: 13, color: Colors.text.secondary, marginBottom: 6, lineHeight: 20 },
-  modalModel: { fontSize: 12, color: Colors.text.tertiary, marginBottom: 16 },
+  modalHint: { fontSize: 13, color: Colors.text.secondary, marginBottom: 12, lineHeight: 20 },
+  modalLabel: { fontSize: 12, fontWeight: '600', color: Colors.text.secondary, marginBottom: 6 },
   keyInput: {
     borderWidth: 0.5,
     borderColor: Colors.border,
