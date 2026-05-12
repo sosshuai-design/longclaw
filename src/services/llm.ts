@@ -114,37 +114,122 @@ interface LLMResponse {
   usage?: { prompt_tokens: number; completion_tokens: number };
 }
 
+// ─── Claude 专用：Anthropic Messages API ──────────────────────────────────────
+
+async function callClaudeAPI(
+  apiKey: string,
+  model: string,
+  messages: LLMRequestMessage[],
+  stream: false,
+  options?: { temperature?: number; maxTokens?: number }
+): Promise<LLMResponse>;
+async function callClaudeAPI(
+  apiKey: string,
+  model: string,
+  messages: LLMRequestMessage[],
+  stream: true,
+  options: { temperature?: number; maxTokens?: number } | undefined,
+  onChunk: (chunk: string) => void,
+  onDone: (full: string) => void
+): Promise<void>;
+async function callClaudeAPI(
+  apiKey: string,
+  model: string,
+  messages: LLMRequestMessage[],
+  stream: boolean,
+  options?: { temperature?: number; maxTokens?: number },
+  onChunk?: (chunk: string) => void,
+  onDone?: (full: string) => void
+): Promise<LLMResponse | void> {
+  const systemMsg = messages.find((m) => m.role === 'system');
+  const chatMsgs = messages.filter((m) => m.role !== 'system');
+
+  const body = JSON.stringify({
+    model,
+    max_tokens: options?.maxTokens ?? 4096,
+    temperature: options?.temperature ?? 0.7,
+    stream,
+    ...(systemMsg ? { system: systemMsg.content as string } : {}),
+    messages: chatMsgs,
+  });
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+    },
+    body,
+  });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Claude 请求失败 (${response.status}): ${err}`);
+  }
+
+  if (!stream) {
+    const data = await response.json();
+    return {
+      content: data.content?.[0]?.text ?? '',
+      usage: data.usage
+        ? { prompt_tokens: data.usage.input_tokens, completion_tokens: data.usage.output_tokens }
+        : undefined,
+    };
+  }
+
+  // streaming
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error('无法读取响应流');
+  const decoder = new TextDecoder();
+  let fullContent = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    for (const line of chunk.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      const json = line.slice(6).trim();
+      if (!json || json === '[DONE]') continue;
+      try {
+        const parsed = JSON.parse(json);
+        if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
+          const text = parsed.delta.text ?? '';
+          if (text) {
+            fullContent += text;
+            onChunk!(text);
+          }
+        }
+      } catch { /* ignore */ }
+    }
+  }
+  onDone!(fullContent);
+}
+
 export async function callLLM(
   providerKey: LLMProviderKey,
   messages: LLMRequestMessage[],
   options?: { temperature?: number; maxTokens?: number }
 ): Promise<LLMResponse> {
   const provider = PROVIDERS[providerKey];
-
-  // Ollama: 本地服务，无需 API Key
   let baseURL = provider.baseURL;
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
 
   if (providerKey === 'ollama') {
-    const customHost = await getOllamaUrl(); // e.g. "http://192.168.1.x:11434"
+    const customHost = await getOllamaUrl();
     baseURL = `${customHost}/v1`;
     headers['Authorization'] = 'Bearer ollama';
   } else {
     const apiKey = await getApiKey(providerKey);
-    if (!apiKey) {
-      throw new Error(`未设置 ${provider.name} 的 API Key`);
+    if (!apiKey) throw new Error(`未设置 ${provider.name} 的 API Key`);
+    if (providerKey === 'claude') {
+      return callClaudeAPI(apiKey, provider.model, messages, false, options);
     }
     headers['Authorization'] = `Bearer ${apiKey}`;
-    // Claude 需要额外头部
-    if (providerKey === 'claude') {
-      headers['anthropic-version'] = '2023-06-01';
-      headers['x-api-key'] = apiKey;
-      delete headers['Authorization'];
-    }
   }
 
   const url = `${baseURL}/chat/completions`;
-
   const body = JSON.stringify({
     model: provider.model,
     messages,
@@ -153,22 +238,14 @@ export async function callLLM(
     stream: false,
   });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body,
-  });
-
+  const response = await fetch(url, { method: 'POST', headers, body });
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`LLM 请求失败 (${response.status}): ${errorText}`);
   }
-
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content ?? '';
-
   return {
-    content,
+    content: data.choices?.[0]?.message?.content ?? '',
     usage: data.usage,
   };
 }
@@ -192,19 +269,14 @@ export async function callLLMStream(
     headers['Authorization'] = 'Bearer ollama';
   } else {
     const apiKey = await getApiKey(providerKey);
-    if (!apiKey) {
-      throw new Error(`未设置 ${provider.name} 的 API Key`);
+    if (!apiKey) throw new Error(`未设置 ${provider.name} 的 API Key`);
+    if (providerKey === 'claude') {
+      return callClaudeAPI(apiKey, provider.model, messages, true, options, onChunk, onDone);
     }
     headers['Authorization'] = `Bearer ${apiKey}`;
-    if (providerKey === 'claude') {
-      headers['anthropic-version'] = '2023-06-01';
-      headers['x-api-key'] = apiKey;
-      delete headers['Authorization'];
-    }
   }
 
   const url = `${baseURL}/chat/completions`;
-
   const body = JSON.stringify({
     model: provider.model,
     messages,
@@ -213,12 +285,7 @@ export async function callLLMStream(
     stream: true,
   });
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body,
-  });
-
+  const response = await fetch(url, { method: 'POST', headers, body });
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(`LLM 请求失败 (${response.status}): ${errorText}`);
@@ -226,18 +293,15 @@ export async function callLLMStream(
 
   const reader = response.body?.getReader();
   if (!reader) throw new Error('无法读取响应流');
-
   const decoder = new TextDecoder();
   let fullContent = '';
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-
     const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n').filter((l) => l.startsWith('data: '));
-
-    for (const line of lines) {
+    for (const line of chunk.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
       const json = line.slice(6).trim();
       if (json === '[DONE]') continue;
       try {
@@ -247,12 +311,9 @@ export async function callLLMStream(
           fullContent += delta;
           onChunk(delta);
         }
-      } catch {
-        // 忽略解析错误
-      }
+      } catch { /* 忽略解析错误 */ }
     }
   }
-
   onDone(fullContent);
 }
 
@@ -283,7 +344,7 @@ ${indexContent}
     {
       "type": "create" | "update",
       "title": "页面标题",
-      "category": "concept|architecture|comparison|summary|tool|diary|note|cognition",
+      "category": "concept|note|diary|tool",
       "tags": ["标签1", "标签2"],
       "content": "Markdown 正文内容（不含 front matter）"
     }
