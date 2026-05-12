@@ -1,12 +1,12 @@
 /**
  * auth.ts — 认证服务
  *
- * 使用 AsyncStorage 存储 JWT token 和用户信息。
+ * 使用 SecureStore 存储 JWT token 和用户信息（系统 Keychain/KeyStore 加密）。
  * 支持：邮箱+密码、微信（OAuth）、GitHub（OAuth）。
  * Phase 1 实现本地模拟认证，后端接入时替换 API 调用即可。
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { User } from '../types';
 
 const STORAGE_KEYS = {
@@ -18,15 +18,15 @@ const STORAGE_KEYS = {
 
 export async function saveAuth(token: string, user: User): Promise<void> {
   await Promise.all([
-    AsyncStorage.setItem(STORAGE_KEYS.token, token),
-    AsyncStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user)),
+    SecureStore.setItemAsync(STORAGE_KEYS.token, token),
+    SecureStore.setItemAsync(STORAGE_KEYS.user, JSON.stringify(user)),
   ]);
 }
 
 export async function loadAuth(): Promise<{ token: string; user: User } | null> {
   const [token, userStr] = await Promise.all([
-    AsyncStorage.getItem(STORAGE_KEYS.token),
-    AsyncStorage.getItem(STORAGE_KEYS.user),
+    SecureStore.getItemAsync(STORAGE_KEYS.token),
+    SecureStore.getItemAsync(STORAGE_KEYS.user),
   ]);
 
   if (!token || !userStr) return null;
@@ -40,8 +40,8 @@ export async function loadAuth(): Promise<{ token: string; user: User } | null> 
 
 export async function clearAuth(): Promise<void> {
   await Promise.all([
-    AsyncStorage.removeItem(STORAGE_KEYS.token),
-    AsyncStorage.removeItem(STORAGE_KEYS.user),
+    SecureStore.deleteItemAsync(STORAGE_KEYS.token),
+    SecureStore.deleteItemAsync(STORAGE_KEYS.user),
   ]);
 }
 
