@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StackNavigationProp, RouteProp } from '@react-navigation/stack';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
 import { ArrowLeft, Sparkles, Link2 } from 'lucide-react-native';
 import { Colors } from '../../constants/colors';
 import { useWikiStore } from '../../store/wikiStore';

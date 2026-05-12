@@ -133,6 +133,7 @@ export function parseFrontMatter(raw: string): { meta: WikiFrontMatter; body: st
         updated: today(),
         source: 'manual',
         references: 0,
+        schema_version: 2,
       },
       body: raw,
     };
@@ -234,6 +235,7 @@ export async function createWikiPage(params: {
     source,
     source_files: sourceFiles,
     references: 0,
+    schema_version: 2,
   };
 
   const fullContent = serializeFrontMatter(meta, content);
@@ -400,15 +402,15 @@ export async function rebuildIndex(pages: WikiPage[]): Promise<void> {
     grouped[key].push(p);
   }
 
-  const categoryNames: Record<WikiCategory, string> = {
+  const categoryNames: Record<string, string> = {
     concept: '概念',
+    note: '笔记',
+    diary: '日记',
+    tool: '工具',
     architecture: '架构',
     comparison: '对比',
     summary: '摘要',
-    diary: '日记',
-    note: '笔记',
     cognition: '认知',
-    tool: '工具',
     personal: '个人',
   };
 

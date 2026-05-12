@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { StackNavigationProp, RouteProp } from '@react-navigation/stack';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
 import { ArrowLeft, Edit2, MessageSquare, Trash2, Link } from 'lucide-react-native';
 import Markdown from 'react-native-markdown-display';
 import { Colors } from '../../constants/colors';
