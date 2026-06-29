@@ -26,6 +26,24 @@ npm run gen:curriculum   # 重新生成占位课程内容
 目标环境：现代 Chrome / Edge（课堂一体机），PC 优先，无需登录。
 支持三种输入：鼠标点击、触摸、键盘数字键 **1 / 2 / 3** 选答案。
 
+## 部署到 GitHub Pages（在线访问，零本地安装）
+
+已配置自动部署工作流 `.github/workflows/deploy-pages.yml`：推送到开发分支且改动了
+`dino-math-island/` 时，自动构建并发布到 `gh-pages` 分支。
+
+**首次启用需要在仓库里点两个设置（各一次）：**
+
+1. **Settings → Actions → General → Workflow permissions** → 选 **Read and write permissions** → Save
+   （让 CI 有权把构建产物推到 `gh-pages` 分支）
+2. 等工作流跑成功一次后（Actions 页可看），**Settings → Pages → Source** 选 **Deploy from a branch**
+   → 分支选 **`gh-pages`** / **`(root)`** → Save
+
+几十秒后站点上线：**https://sosshuai-design.github.io/longclaw/**
+
+> - 用 **HashRouter**，刷新/深链不会 404；构建 `base` 为 `/longclaw/`（见 `vite.config.ts`）。
+> - 换自定义域名或根站点：把 `vite.config.ts` 里的 `BASE` 改成 `"/"`。
+> - 不想用 Actions 也可手动：`npm run build` 后把 `dino-math-island/dist/` 传到任意静态托管（Netlify/Vercel/对象存储均可）。
+
 ## 目录结构
 
 ```

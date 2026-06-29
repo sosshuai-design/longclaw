@@ -1,0 +1,46 @@
+name: Deploy 恐龙数学岛 to GitHub Pages
+
+# 构建 dino-math-island/ 并发布到 gh-pages 分支。
+# 启用方法（仓库设置，仅需一次）：
+#   1) Settings → Actions → General → Workflow permissions → 选 "Read and write permissions"
+#   2) 本工作流首次成功后，Settings → Pages → Source 选 "Deploy from a branch" → 分支 gh-pages / (root)
+#   站点地址：https://sosshuai-design.github.io/longclaw/
+
+on:
+  push:
+    branches: [claude/infant-math-learning-tool-h6fjm4]
+    paths:
+      - "dino-math-island/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deploy-pages
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install & build
+        working-directory: dino-math-island
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dino-math-island/dist
+          publish_branch: gh-pages
+          force_orphan: true
