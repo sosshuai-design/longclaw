@@ -37,7 +37,9 @@ export default function PlayPage() {
 
   // 选定本轮知识点（加/减），并算难度上限
   const kp = useMemo<KnowledgePoint | undefined>(() => {
-    if (!unit || unit === "mixed" || !isUnitUnlocked(cur, unit, mastery)) return undefined;
+    if (!unit || unit === "mixed") return undefined;
+    if (!settings.enabledUnits.includes(unit)) return undefined;
+    if (!settings.unlockAll && !isUnitUnlocked(cur, unit, mastery)) return undefined;
     return pickKpForUnit(cur, unit, mastery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unit]);

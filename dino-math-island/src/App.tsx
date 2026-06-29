@@ -7,6 +7,8 @@ import BasePage from "./pages/BasePage";
 import PlayPage from "./pages/PlayPage";
 import ResultPage from "./pages/ResultPage";
 import ChantPage from "./pages/ChantPage";
+import GatePage from "./pages/GatePage";
+import DashboardPage from "./pages/DashboardPage";
 
 // 课程内容通过 Context 提供，全应用只加载一次
 const CurriculumContext = createContext<Curriculum | null>(null);
@@ -34,11 +36,11 @@ function TopBar() {
           {coins}
         </div>
         <button
-          title="Phase 3 开放"
-          onClick={() => alert("教师 / 家长中心将在 Phase 3 开放")}
+          title="教师 / 家长中心"
+          onClick={() => navigate("/gate")}
           className="rounded-2xl px-4 py-2 bg-white shadow-pop text-ink/70 font-bold"
         >
-          🔒 教师
+          👩‍🏫 教师
         </button>
       </div>
     </header>
@@ -85,6 +87,8 @@ export default function App() {
             <Route path="/play/:unit" element={<PlayPage />} />
             <Route path="/result" element={<ResultPage />} />
             <Route path="/chant" element={<ChantPage />} />
+            <Route path="/gate" element={<GatePage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

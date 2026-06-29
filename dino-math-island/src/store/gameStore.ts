@@ -6,6 +6,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { Profile, Settings, Unit } from "../engine/types";
 import { newRecord, onAnswer, countMastered } from "../engine/masteryModel";
 import { coinsForCorrect, type ChestResult } from "../engine/rewards";
+import { todayKey, nextStreak } from "../engine/stats";
 
 const defaultProfile: Profile = {
   id: "kid-1",
@@ -17,6 +18,7 @@ const defaultProfile: Profile = {
   streakDays: 0,
   difficultyByKp: {},
   mastery: {},
+  daily: {},
 };
 
 const defaultSettings: Settings = {
@@ -25,6 +27,7 @@ const defaultSettings: Settings = {
   maxDifficulty: 4,
   enabledUnits: ["addition", "subtraction", "multiplication", "division"],
   eyeRestReminder: true,
+  unlockAll: false,
 };
 
 interface GameState {
@@ -59,6 +62,20 @@ export const useGameStore = create<GameState>()(
           const prev = s.profile.mastery[kpId] ?? newRecord(kpId);
           const updated = onAnswer(prev, correct, responseMs, masteryThreshold);
           const mastery = { ...s.profile.mastery, [kpId]: updated };
+
+          // 每日统计 + 连续天数
+          const today = todayKey();
+          const d = s.profile.daily[today] ?? { answered: 0, correct: 0, timeMs: 0 };
+          const daily = {
+            ...s.profile.daily,
+            [today]: {
+              answered: d.answered + 1,
+              correct: d.correct + (correct ? 1 : 0),
+              timeMs: d.timeMs + Math.min(responseMs, 60_000), // 单题计时封顶，防挂机
+            },
+          };
+          const streakDays = nextStreak(s.profile);
+
           return {
             profile: {
               ...s.profile,
@@ -66,6 +83,9 @@ export const useGameStore = create<GameState>()(
               masteredCount: countMastered(mastery),
               coins: s.profile.coins + (correct ? coinsForCorrect(level) : 0),
               difficultyByKp: { ...s.profile.difficultyByKp, [kpId]: level },
+              daily,
+              streakDays,
+              lastActiveDay: today,
             },
           };
         }),
@@ -102,9 +122,16 @@ export const useGameStore = create<GameState>()(
     }),
     {
       name: "dmi.store",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
       partialize: (s) => ({ profile: s.profile, settings: s.settings }),
+      // 旧档案补齐 Phase 3 新增字段，避免 undefined
+      migrate: (persisted) => {
+        const p = persisted as { profile?: Partial<Profile>; settings?: Partial<Settings> };
+        if (p?.profile && !p.profile.daily) p.profile.daily = {};
+        if (p?.settings && p.settings.unlockAll === undefined) p.settings.unlockAll = false;
+        return p as { profile: Profile; settings: Settings };
+      },
     }
   )
 );

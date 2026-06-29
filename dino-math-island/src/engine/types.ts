@@ -93,6 +93,13 @@ export interface MasteryRecord {
 }
 
 // —— 档案与全局状态 ——
+/** 每日练习统计（看板用，key 为 YYYY-MM-DD） */
+export interface DayStat {
+  answered: number;
+  correct: number;
+  timeMs: number;
+}
+
 export interface Profile {
   id: string;
   name: string;
@@ -101,8 +108,10 @@ export interface Profile {
   masteredCount: number; // 已掌握知识点数（驱动宠物进化）
   stickers: number[]; // 已获贴纸索引
   streakDays: number;
+  lastActiveDay?: string; // 最近练习日（算连续天数用）
   difficultyByKp: Record<string, number>; // 每个知识点当前难度档
   mastery: Record<string, MasteryRecord>;
+  daily: Record<string, DayStat>; // 每日练习统计
 }
 
 export interface Settings {
@@ -111,4 +120,5 @@ export interface Settings {
   maxDifficulty: number;
   enabledUnits: Unit[];
   eyeRestReminder: boolean;
+  unlockAll: boolean; // 教学演示：忽略前置，全部岛解锁
 }

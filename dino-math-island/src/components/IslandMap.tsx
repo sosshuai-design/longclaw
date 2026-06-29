@@ -17,14 +17,18 @@ const UNIT_ORDER: Exclude<Unit, "mixed">[] = [
 export default function IslandMap() {
   const cur = useCurriculum();
   const mastery = useGameStore((s) => s.profile.mastery);
+  const settings = useGameStore((s) => s.settings);
   const navigate = useNavigate();
+
+  // 内容范围开关：只显示被启用的单元
+  const units = UNIT_ORDER.filter((u) => settings.enabledUnits.includes(u));
 
   return (
     <div className="grid grid-cols-2 gap-5">
-      {UNIT_ORDER.map((unit) => {
+      {units.map((unit) => {
         const meta = UNIT_META[unit];
         const pct = unitMasteryPct(cur, unit, mastery);
-        const unlocked = isUnitUnlocked(cur, unit, mastery);
+        const unlocked = settings.unlockAll || isUnitUnlocked(cur, unit, mastery);
         const blockers = unlocked ? [] : unitLockBlockers(cur, unit, mastery);
         return (
           <motion.button
