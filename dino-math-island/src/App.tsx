@@ -6,6 +6,7 @@ import { useGameStore } from "./store/gameStore";
 import BasePage from "./pages/BasePage";
 import PlayPage from "./pages/PlayPage";
 import ResultPage from "./pages/ResultPage";
+import ChantPage from "./pages/ChantPage";
 
 // 课程内容通过 Context 提供，全应用只加载一次
 const CurriculumContext = createContext<Curriculum | null>(null);
@@ -83,6 +84,7 @@ export default function App() {
             <Route path="/" element={<BasePage />} />
             <Route path="/play/:unit" element={<PlayPage />} />
             <Route path="/result" element={<ResultPage />} />
+            <Route path="/chant" element={<ChantPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

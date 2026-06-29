@@ -49,6 +49,34 @@ export function pickKpForUnit(
   return next ?? kps[kps.length - 1];
 }
 
+/** 单元的第一个知识点（按顺序） */
+export function firstKpOfUnit(cur: Curriculum, unit: Unit): KnowledgePoint | undefined {
+  return kpsByUnit(cur, unit)[0];
+}
+
+/** 单元是否解锁：以该单元第一个知识点的前置是否都已掌握为准（开发文档 §6.1） */
+export function isUnitUnlocked(
+  cur: Curriculum,
+  unit: Unit,
+  mastery: Record<string, MasteryRecord>
+): boolean {
+  const first = firstKpOfUnit(cur, unit);
+  return !!first && isKpUnlocked(first, mastery);
+}
+
+/** 解锁某单元还差哪些前置（返回知识点中文名，用于锁定提示） */
+export function unitLockBlockers(
+  cur: Curriculum,
+  unit: Unit,
+  mastery: Record<string, MasteryRecord>
+): string[] {
+  const first = firstKpOfUnit(cur, unit);
+  if (!first) return [];
+  return first.prerequisites
+    .filter((pid) => mastery[pid]?.status !== "mastered")
+    .map((pid) => kpById(cur, pid)?.name ?? pid);
+}
+
 /** 单元综合掌握度（0..100，该单元所有知识点平均分） */
 export function unitMasteryPct(
   cur: Curriculum,

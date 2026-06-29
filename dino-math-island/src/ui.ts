@@ -22,6 +22,3 @@ export const COLORS = {
   coin: "#FFB531",
   ink: "#3A2F5B",
 } as const;
-
-// Phase 1 只开放加 / 减；乘 / 除留待 Phase 2
-export const PHASE1_UNITS: Unit[] = ["addition", "subtraction"];

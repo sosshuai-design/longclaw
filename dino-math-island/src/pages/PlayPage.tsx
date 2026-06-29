@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import type { KnowledgePoint, Question, Unit } from "../engine/types";
 import { useCurriculum } from "../App";
-import { pickKpForUnit } from "../engine/curriculum";
+import { pickKpForUnit, isUnitUnlocked } from "../engine/curriculum";
 import { generateQuestion } from "../engine/questionGenerator";
 import {
   createAdaptiveState,
@@ -13,7 +13,7 @@ import {
 } from "../engine/adaptiveDifficulty";
 import { coinsForCorrect } from "../engine/rewards";
 import { useGameStore } from "../store/gameStore";
-import { UNIT_META, PHASE1_UNITS, COLORS } from "../ui";
+import { UNIT_META, COLORS } from "../ui";
 import { playCorrect, playWrong, playCoin } from "../audio/sfx";
 import { speak } from "../audio/speech";
 import VisualAids from "../components/VisualAids";
@@ -37,7 +37,7 @@ export default function PlayPage() {
 
   // 选定本轮知识点（加/减），并算难度上限
   const kp = useMemo<KnowledgePoint | undefined>(() => {
-    if (!unit || !PHASE1_UNITS.includes(unit)) return undefined;
+    if (!unit || unit === "mixed" || !isUnitUnlocked(cur, unit, mastery)) return undefined;
     return pickKpForUnit(cur, unit, mastery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unit]);
@@ -208,6 +208,10 @@ export default function PlayPage() {
   };
 
   const progress = Math.round(((qIndex + 1) / roundQuestions) * 100);
+  // 题型阶梯（§8.3）：看图题才突出实物图示，算式/填空题更抽象
+  const showVisual =
+    !!question.visual &&
+    (question.type === "pictureChoice" || question.type === "pictureToEquation");
 
   return (
     <div className="h-full flex flex-col p-4 md:p-6 max-w-6xl mx-auto w-full">
@@ -226,7 +230,11 @@ export default function PlayPage() {
         {/* 左舞台 */}
         <div className="bg-surface rounded-3xl shadow-soft p-6 flex flex-col items-center justify-center gap-6" style={{ borderTop: `8px solid ${meta.hex}` }}>
           <div className="min-h-[120px] grid place-items-center">
-            {question.visual ? <VisualAids visual={question.visual} op={question.op} /> : <div className="text-6xl">{meta.emoji}</div>}
+            {showVisual && question.visual ? (
+              <VisualAids visual={question.visual} op={question.op} />
+            ) : (
+              <div className="text-6xl">{meta.emoji}</div>
+            )}
           </div>
           <div className="text-equation text-ink flex items-center gap-3 flex-wrap justify-center">
             <span>{question.a}</span>
