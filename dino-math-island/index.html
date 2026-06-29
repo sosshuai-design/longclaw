@@ -1,29 +1,13 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#7ec8e3" />
-  <title>恐龙数学岛 · Dinosaur Math Island</title>
-  <link rel="stylesheet" href="./styles.css" />
-</head>
-<body>
-  <!-- 顶部栏 -->
-  <header id="topbar" class="topbar">
-    <button id="homeBtn" class="icon-btn" aria-label="回到地图" title="回到地图" hidden>🏠</button>
-    <div class="brand">
-      <span class="brand-emoji">🦕</span>
-      <span class="brand-text">恐龙数学岛</span>
-    </div>
-    <button id="soundBtn" class="icon-btn" aria-label="声音开关" title="声音开关">🔊</button>
-  </header>
-
-  <!-- 主舞台：所有屏幕都渲染在这里 -->
-  <main id="app" class="app"></main>
-
-  <!-- 庆祝彩带画布 -->
-  <canvas id="confetti" class="confetti-canvas" aria-hidden="true"></canvas>
-
-  <script type="module" src="./src/main.js"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#F3F0FA" />
+    <title>恐龙数学岛 · Dino Math Island</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>

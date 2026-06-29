@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #f3f0fa;
+  color: #3a2f5b;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    "Noto Sans CJK SC", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* 课堂大屏：禁止误触缩放/选中 */
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* 尊重 prefers-reduced-motion（开发文档 §9） */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* 焦点可见（可访问性） */
+:focus-visible {
+  outline: 3px solid #5b8def;
+  outline-offset: 2px;
+}
