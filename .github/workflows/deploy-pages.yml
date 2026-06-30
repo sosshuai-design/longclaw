@@ -1,10 +1,9 @@
 name: Deploy 恐龙数学岛 to GitHub Pages
 
-# 构建 dino-math-island/ 并发布到 gh-pages 分支。
-# 启用方法（仓库设置，仅需一次）：
-#   1) Settings → Actions → General → Workflow permissions → 选 "Read and write permissions"
-#   2) 本工作流首次成功后，Settings → Pages → Source 选 "Deploy from a branch" → 分支 gh-pages / (root)
-#   站点地址：https://sosshuai-design.github.io/longclaw/
+# 用 GitHub 官方 Pages 部署（actions/configure-pages + upload-pages-artifact + deploy-pages）。
+# configure-pages 的 enablement:true 会通过 API 直接把 Pages 启用并设为 "GitHub Actions" 模式，
+# 绕开"从分支构建(legacy)"那套在本仓库上 404 的旧部署器。
+# 站点地址：https://sosshuai-design.github.io/longclaw/
 
 on:
   push:
@@ -15,14 +14,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: deploy-pages
-  cancel-in-progress: true
+  group: pages
+  cancel-in-progress: false
 
 jobs:
-  build-deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,16 +32,31 @@ jobs:
         with:
           node-version: 20
 
+      - name: Configure Pages (enable + 设为 Actions 模式)
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - name: Install & build
         working-directory: dino-math-island
+        env:
+          VITE_BASE: /longclaw/ # 项目站点子路径
         run: |
           npm ci
           npm run build
 
-      - name: Publish to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: dino-math-island/dist
-          publish_branch: gh-pages
-          force_orphan: true
+          path: dino-math-island/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
