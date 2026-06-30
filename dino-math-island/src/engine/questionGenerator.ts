@@ -81,6 +81,22 @@ function tableOf(kp: KnowledgePoint): number {
   return randInt(2, 9); // MUL_MIXED
 }
 
+/** 应用题文本（V1，恐龙主题，加/减） */
+function storyFor(op: "+" | "-", a: number, b: number): string {
+  if (op === "+") {
+    return pick([
+      `小恐龙先找到 ${a} 颗恐龙蛋，又找到 ${b} 颗，一共有几颗？`,
+      `树上有 ${a} 只小恐龙，又飞来 ${b} 只，现在一共几只？`,
+      `小恐龙摘了 ${a} 个果子，朋友又给了 ${b} 个，一共几个？`,
+    ]);
+  }
+  return pick([
+    `草地上有 ${a} 只小恐龙，走了 ${b} 只，还剩几只？`,
+    `小恐龙有 ${a} 颗果子，吃掉了 ${b} 颗，还剩几颗？`,
+    `篮子里有 ${a} 颗恐龙蛋，拿走 ${b} 颗，还剩几颗？`,
+  ]);
+}
+
 /** 主入口：根据知识点和某个难度档生成一道题 */
 export function generateQuestion(kp: KnowledgePoint, level: DifficultyLevel): Question {
   const type: QuestionType = pick(level.questionTypes);
@@ -127,15 +143,22 @@ export function generateQuestion(kp: KnowledgePoint, level: DifficultyLevel): Qu
   }
 
   const opWord = { "+": "加", "-": "减", "×": "乘", "÷": "除以" }[op];
-  const promptText = `${a} ${opWord} ${b} 等于几？`;
 
-  // 实物图示：数值不大时给出（开发文档 §8.4，>24 不出图示）
+  let promptText: string;
   let visual: Question["visual"];
-  if (op === "×" && a * b <= 24) visual = { kind: "array", a, b };
-  else if (op === "÷" && a <= 24) visual = { kind: "array", a: answer, b, quotient: answer };
-  else if ((op === "+" || op === "-") && a <= 20 && b <= 20 && a + b <= 24) {
-    // numberline 在 V1 用 groups 占位
-    visual = { kind: visualKind === "array" ? "groups" : visualKind, a, b };
+
+  if (type === "wordProblem" && (op === "+" || op === "-")) {
+    // 应用题（V1）：靠读题理解，不给图示
+    promptText = storyFor(op, a, b);
+  } else {
+    promptText = `${a} ${opWord} ${b} 等于几？`;
+    // 实物图示：数值不大时给出（开发文档 §8.4，>24 不出图示）
+    if (op === "×" && a * b <= 24) visual = { kind: "array", a, b };
+    else if (op === "÷" && a <= 24) visual = { kind: "array", a: answer, b, quotient: answer };
+    else if ((op === "+" || op === "-") && a <= 20 && b <= 20 && a + b <= 24) {
+      // numberline 在 V1 用 groups 占位
+      visual = { kind: visualKind === "array" ? "groups" : visualKind, a, b };
+    }
   }
 
   return {

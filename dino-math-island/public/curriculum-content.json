@@ -205,7 +205,8 @@
         {
           "level": 4,
           "questionTypes": [
-            "fillBlank"
+            "fillBlank",
+            "wordProblem"
           ],
           "numberRange": [
             10,
@@ -271,7 +272,8 @@
         {
           "level": 4,
           "questionTypes": [
-            "fillBlank"
+            "fillBlank",
+            "wordProblem"
           ],
           "numberRange": [
             11,
@@ -1049,7 +1051,8 @@
         {
           "level": 4,
           "questionTypes": [
-            "fillBlank"
+            "fillBlank",
+            "wordProblem"
           ],
           "numberRange": [
             10,
@@ -1114,7 +1117,8 @@
         {
           "level": 4,
           "questionTypes": [
-            "fillBlank"
+            "fillBlank",
+            "wordProblem"
           ],
           "numberRange": [
             20,

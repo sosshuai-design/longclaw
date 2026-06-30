@@ -133,6 +133,15 @@ const knowledgePoints = [
   }),
 ];
 
+// V1：在 20/100 以内加减的最高难度档解锁「应用题」(wordProblem)
+for (const id of ["ADD_WITHIN_20", "SUB_WITHIN_20", "ADD_WITHIN_100", "SUB_WITHIN_100"]) {
+  const k = knowledgePoints.find((x) => x.id === id);
+  const last = k.levels[k.levels.length - 1];
+  if (!last.questionTypes.includes("wordProblem")) {
+    last.questionTypes = [...last.questionTypes, "wordProblem"];
+  }
+}
+
 const data = {
   meta: {
     title: "恐龙数学岛",

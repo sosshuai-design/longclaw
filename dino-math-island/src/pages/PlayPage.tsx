@@ -214,6 +214,7 @@ export default function PlayPage() {
   const showVisual =
     !!question.visual &&
     (question.type === "pictureChoice" || question.type === "pictureToEquation");
+  const isWord = question.type === "wordProblem"; // 应用题（V1）：读题，不显算式
 
   return (
     <div className="h-full flex flex-col p-4 md:p-6 max-w-6xl mx-auto w-full">
@@ -231,29 +232,45 @@ export default function PlayPage() {
       <div className="flex-1 grid md:grid-cols-2 gap-6 items-stretch">
         {/* 左舞台 */}
         <div className="bg-surface rounded-3xl shadow-soft p-6 flex flex-col items-center justify-center gap-6" style={{ borderTop: `8px solid ${meta.hex}` }}>
-          <div className="min-h-[120px] grid place-items-center">
-            {showVisual && question.visual ? (
-              <VisualAids visual={question.visual} op={question.op} />
-            ) : (
-              <div className="text-6xl">{meta.emoji}</div>
-            )}
-          </div>
-          <div className="text-equation text-ink flex items-center gap-3 flex-wrap justify-center">
-            <span>{question.a}</span>
-            <span>{question.op}</span>
-            <span>{question.b}</span>
-            <span>=</span>
-            <span
-              className="inline-grid place-items-center rounded-2xl"
-              style={{
-                minWidth: 90,
-                borderBottom: locked ? "none" : "6px dashed #C9C0E0",
-                color: locked ? COLORS.correct : "#C9C0E0",
-              }}
-            >
-              {locked ? question.answer : "?"}
-            </span>
-          </div>
+          {isWord ? (
+            <div className="flex flex-col items-center gap-4">
+              <div className="text-5xl">📖🦕</div>
+              <p className="text-3xl font-extrabold text-ink leading-relaxed text-center px-2">
+                {question.promptText}
+              </p>
+              {locked && (
+                <div className="text-2xl font-extrabold" style={{ color: COLORS.correct }}>
+                  答案：{question.answer}
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="min-h-[120px] grid place-items-center">
+                {showVisual && question.visual ? (
+                  <VisualAids visual={question.visual} op={question.op} />
+                ) : (
+                  <div className="text-6xl">{meta.emoji}</div>
+                )}
+              </div>
+              <div className="text-equation text-ink flex items-center gap-3 flex-wrap justify-center">
+                <span>{question.a}</span>
+                <span>{question.op}</span>
+                <span>{question.b}</span>
+                <span>=</span>
+                <span
+                  className="inline-grid place-items-center rounded-2xl"
+                  style={{
+                    minWidth: 90,
+                    borderBottom: locked ? "none" : "6px dashed #C9C0E0",
+                    color: locked ? COLORS.correct : "#C9C0E0",
+                  }}
+                >
+                  {locked ? question.answer : "?"}
+                </span>
+              </div>
+            </>
+          )}
           <button
             onClick={() => speak(question.promptText, settings.sound)}
             className="rounded-2xl bg-bg px-5 py-2 font-bold text-ink/80"
