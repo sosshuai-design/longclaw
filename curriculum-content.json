@@ -1,0 +1,1130 @@
+{
+  "meta": {
+    "title": "恐龙数学岛",
+    "titleEn": "Dino Math Island",
+    "version": "0.1.0-placeholder",
+    "language": "zh-CN",
+    "ageRange": "5-8",
+    "scene": "classroom",
+    "note": "占位课程：由开发文档 §4/§8 重建，待替换为真实 curriculum-content.json。",
+    "roundQuestions": 8,
+    "calibrationQuestions": 3,
+    "masteryThresholdDefault": 80,
+    "adaptive": {
+      "upStreak": 3,
+      "downStreak": 2,
+      "target": 0.78,
+      "maxLevelDefault": 4
+    },
+    "units": [
+      "addition",
+      "subtraction",
+      "multiplication",
+      "division"
+    ]
+  },
+  "knowledgePoints": [
+    {
+      "masteryThreshold": 80,
+      "id": "ADD_WITHIN_10",
+      "unit": "addition",
+      "name": "10以内加法",
+      "order": 1,
+      "prerequisites": [],
+      "teachingModel": "groups",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            0,
+            5
+          ],
+          "flags": [
+            "noCarry"
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            0,
+            8
+          ],
+          "flags": [
+            "noCarry"
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            0,
+            10
+          ],
+          "flags": [
+            "noCarry"
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            0,
+            10
+          ],
+          "flags": [
+            "noCarry"
+          ]
+        }
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "SUB_WITHIN_10",
+      "unit": "subtraction",
+      "name": "10以内减法",
+      "order": 2,
+      "prerequisites": [
+        "ADD_WITHIN_10"
+      ],
+      "teachingModel": "groups",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            0,
+            5
+          ],
+          "flags": [
+            "noBorrow"
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            0,
+            8
+          ],
+          "flags": [
+            "noBorrow"
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            0,
+            10
+          ],
+          "flags": [
+            "noBorrow"
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            0,
+            10
+          ],
+          "flags": [
+            "noBorrow"
+          ]
+        }
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "ADD_WITHIN_20",
+      "unit": "addition",
+      "name": "20以内进位加法",
+      "order": 3,
+      "prerequisites": [
+        "ADD_WITHIN_10"
+      ],
+      "teachingModel": "numberline",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            10,
+            13
+          ],
+          "flags": [
+            "carry"
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            10,
+            15
+          ],
+          "flags": [
+            "carry"
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            10,
+            18
+          ],
+          "flags": [
+            "carry"
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            10,
+            20
+          ],
+          "flags": [
+            "carry"
+          ]
+        }
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "SUB_WITHIN_20",
+      "unit": "subtraction",
+      "name": "20以内退位减法",
+      "order": 4,
+      "prerequisites": [
+        "SUB_WITHIN_10",
+        "ADD_WITHIN_20"
+      ],
+      "teachingModel": "numberline",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            11,
+            14
+          ],
+          "flags": [
+            "borrow"
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            11,
+            16
+          ],
+          "flags": [
+            "borrow"
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            11,
+            18
+          ],
+          "flags": [
+            "borrow"
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            11,
+            20
+          ],
+          "flags": [
+            "borrow"
+          ]
+        }
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "MUL_T2",
+      "unit": "multiplication",
+      "name": "2的乘法口诀",
+      "order": 5,
+      "prerequisites": [
+        "ADD_WITHIN_20"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            3
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            6
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        }
+      ],
+      "chant": [
+        "一二得二",
+        "二二得四",
+        "二三得六",
+        "二四得八",
+        "二五一十",
+        "二六十二",
+        "二七十四",
+        "二八十六",
+        "二九十八"
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "MUL_T5",
+      "unit": "multiplication",
+      "name": "5的乘法口诀",
+      "order": 6,
+      "prerequisites": [
+        "MUL_T2"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            3
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            6
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        }
+      ],
+      "chant": [
+        "一五得五",
+        "二五一十",
+        "三五十五",
+        "四五二十",
+        "五五二十五",
+        "五六三十",
+        "五七三十五",
+        "五八四十",
+        "五九四十五"
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "MUL_T3",
+      "unit": "multiplication",
+      "name": "3的乘法口诀",
+      "order": 7,
+      "prerequisites": [
+        "MUL_T2"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            3
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            6
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        }
+      ],
+      "chant": [
+        "一三得三",
+        "二三得六",
+        "三三得九",
+        "三四十二",
+        "三五十五",
+        "三六十八",
+        "三七二十一",
+        "三八二十四",
+        "三九二十七"
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "MUL_T4",
+      "unit": "multiplication",
+      "name": "4的乘法口诀",
+      "order": 8,
+      "prerequisites": [
+        "MUL_T3"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            3
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            6
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        }
+      ],
+      "chant": [
+        "一四得四",
+        "二四得八",
+        "三四十二",
+        "四四十六",
+        "四五二十",
+        "四六二十四",
+        "四七二十八",
+        "四八三十二",
+        "四九三十六"
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "MUL_T6",
+      "unit": "multiplication",
+      "name": "6的乘法口诀",
+      "order": 9,
+      "prerequisites": [
+        "MUL_T5"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            3
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            6
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        }
+      ],
+      "chant": [
+        "一六得六",
+        "二六十二",
+        "三六十八",
+        "四六二十四",
+        "五六三十",
+        "六六三十六",
+        "六七四十二",
+        "六八四十八",
+        "六九五十四"
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "MUL_T7",
+      "unit": "multiplication",
+      "name": "7的乘法口诀",
+      "order": 10,
+      "prerequisites": [
+        "MUL_T6"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            3
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            6
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        }
+      ],
+      "chant": [
+        "一七得七",
+        "二七十四",
+        "三七二十一",
+        "四七二十八",
+        "五七三十五",
+        "六七四十二",
+        "七七四十九",
+        "七八五十六",
+        "七九六十三"
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "MUL_T8",
+      "unit": "multiplication",
+      "name": "8的乘法口诀",
+      "order": 11,
+      "prerequisites": [
+        "MUL_T7"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            3
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            6
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        }
+      ],
+      "chant": [
+        "一八得八",
+        "二八十六",
+        "三八二十四",
+        "四八三十二",
+        "五八四十",
+        "六八四十八",
+        "七八五十六",
+        "八八六十四",
+        "八九七十二"
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "MUL_T9",
+      "unit": "multiplication",
+      "name": "9的乘法口诀",
+      "order": 12,
+      "prerequisites": [
+        "MUL_T8"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            3
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            6
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        }
+      ],
+      "chant": [
+        "一九得九",
+        "二九十八",
+        "三九二十七",
+        "四九三十六",
+        "五九四十五",
+        "六九五十四",
+        "七九六十三",
+        "八九七十二",
+        "九九八十一"
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "MUL_MIXED",
+      "unit": "multiplication",
+      "name": "表内乘法综合",
+      "order": 13,
+      "prerequisites": [
+        "MUL_T9"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            5
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ]
+        }
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "DIV_BY_2_5",
+      "unit": "division",
+      "name": "用2/5口诀求商",
+      "order": 14,
+      "prerequisites": [
+        "MUL_T5"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            5
+          ],
+          "flags": [
+            "divisors:2,5"
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ],
+          "flags": [
+            "divisors:2,5"
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ],
+          "flags": [
+            "divisors:2,5"
+          ]
+        }
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "DIV_BY_3_4",
+      "unit": "division",
+      "name": "用3/4口诀求商",
+      "order": 15,
+      "prerequisites": [
+        "MUL_T4",
+        "DIV_BY_2_5"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            5
+          ],
+          "flags": [
+            "divisors:3,4"
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ],
+          "flags": [
+            "divisors:3,4"
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ],
+          "flags": [
+            "divisors:3,4"
+          ]
+        }
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "DIV_BY_6_9",
+      "unit": "division",
+      "name": "用6-9口诀求商",
+      "order": 16,
+      "prerequisites": [
+        "MUL_T9",
+        "DIV_BY_3_4"
+      ],
+      "teachingModel": "array",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "pictureChoice"
+          ],
+          "numberRange": [
+            1,
+            5
+          ],
+          "flags": [
+            "divisors:6,7,8,9"
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            1,
+            9
+          ],
+          "flags": [
+            "divisors:6,7,8,9"
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            1,
+            9
+          ],
+          "flags": [
+            "divisors:6,7,8,9"
+          ]
+        }
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "ADD_WITHIN_100",
+      "unit": "addition",
+      "name": "100以内加法",
+      "order": 17,
+      "prerequisites": [
+        "ADD_WITHIN_20"
+      ],
+      "teachingModel": "numberline",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            10,
+            50
+          ],
+          "flags": [
+            "noCarry"
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            10,
+            99
+          ],
+          "flags": [
+            "noCarry"
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            10,
+            99
+          ],
+          "flags": [
+            "carry"
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            10,
+            99
+          ],
+          "flags": [
+            "carry"
+          ]
+        }
+      ]
+    },
+    {
+      "masteryThreshold": 80,
+      "id": "SUB_WITHIN_100",
+      "unit": "subtraction",
+      "name": "100以内减法",
+      "order": 18,
+      "prerequisites": [
+        "SUB_WITHIN_20"
+      ],
+      "teachingModel": "numberline",
+      "levels": [
+        {
+          "level": 1,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            20,
+            50
+          ],
+          "flags": [
+            "noBorrow"
+          ]
+        },
+        {
+          "level": 2,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            20,
+            99
+          ],
+          "flags": [
+            "noBorrow"
+          ]
+        },
+        {
+          "level": 3,
+          "questionTypes": [
+            "equationChoice"
+          ],
+          "numberRange": [
+            20,
+            99
+          ],
+          "flags": [
+            "borrow"
+          ]
+        },
+        {
+          "level": 4,
+          "questionTypes": [
+            "fillBlank"
+          ],
+          "numberRange": [
+            20,
+            99
+          ],
+          "flags": [
+            "borrow"
+          ]
+        }
+      ]
+    }
+  ]
+}
