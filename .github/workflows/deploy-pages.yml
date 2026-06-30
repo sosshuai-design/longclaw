@@ -1,8 +1,10 @@
 name: Deploy 恐龙数学岛 to GitHub Pages
 
-# 用 GitHub 官方 Pages 部署（actions/configure-pages + upload-pages-artifact + deploy-pages）。
-# configure-pages 的 enablement:true 会通过 API 直接把 Pages 启用并设为 "GitHub Actions" 模式，
-# 绕开"从分支构建(legacy)"那套在本仓库上 404 的旧部署器。
+# 用 GitHub 官方 Actions 部署（upload-pages-artifact + deploy-pages）。
+#
+# 一次性前置（必须由仓库管理员在网页上做，自动 token 没权限代办）：
+#   Settings → Pages → Build and deployment → Source 选 "GitHub Actions"
+# 之后本工作流每次推送自动构建并部署。
 # 站点地址：https://sosshuai-design.github.io/longclaw/
 
 on:
@@ -31,11 +33,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Configure Pages (enable + 设为 Actions 模式)
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Install & build
         working-directory: dino-math-island
